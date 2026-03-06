@@ -1,4 +1,4 @@
-name: Release Linux App
+name: Release
 
 on:
   push:
