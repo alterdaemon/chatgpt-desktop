@@ -1,0 +1,28 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [1.1.0] - 2026-03-18
+
+### Added
+- System tray integration with quick actions to show the app or quit.
+- Global `Ctrl+Q` / `Cmd+Q` shortcut for explicit application exit.
+- Optional CSS loading support for external or bundled UI customization.
+- Automatic creation of config, style, and cache directories on first launch.
+
+### Changed
+- Updated the desktop wrapper to open ChatGPT with tray behavior instead of a window-only workflow.
+- Improved window lifecycle handling so closing the window hides the app and keeps it available from the tray.
+- Disabled Electron DevTools in the packaged app and applied startup flags for smoother runtime behavior.
+- Renamed the package to `chatgpt-desktop` and bumped the application version to `1.1.0`.
+- Refreshed project metadata in `README.md` and `LICENSE` to reflect current maintainer and credits.
+- Moved the preferred user stylesheet location to `~/.config/chatgpt-desktop/styles/custom.css`.
+- Stored persistent Electron profile data under `~/.local/share/chatgpt-desktop/` and crash dump data under `~/.cache/chatgpt-desktop/crashpad`.
+- Prevented duplicate app launches by revealing the existing window instead of creating a second instance and tray icon.
+
+## [1.0.0] - Initial release
+
+### Added
+- Initial Electron desktop wrapper for ChatGPT on Ubuntu/Linux.
+- Basic application window with preload support and external link handling.
+- Packaging setup with Electron and Electron Builder.

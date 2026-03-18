@@ -1,12 +1,12 @@
 {
-  "name": "chatgpt",
-  "version": "1.0.0",
-  "description": "Linux-friendly Electron wrapper for ChatGPT",
+  "name": "chatgpt-desktop",
+  "version": "1.1.0",
+  "description": "Minimal Electron wrapper for ChatGPT with optional customization, optimized for Linux",
   "homepage": "https://chatgpt.com",
   "main": "main.js",
   "author": {
-    "name": "Stephan Coertzen",
-    "email": "coertzen.jfs@gmail.com"
+    "name": "alter.daemon",
+    "email": "alter.daemon.ivytq@passmail.com"
   },
   "license": "MIT",
   "private": true,
@@ -21,22 +21,24 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "com.local.chatgpt",
-    "productName": "ChatGPT",
+    "appId": "com.alterdaemon.chatgpt-desktop",
+    "productName": "ChatGPT Desktop (Unofficial)",
     "npmRebuild": false,
     "files": [
       "main.js",
       "preload.js",
-      "package.json"
+      "package.json",
+      "build/icons/icon.png"
     ],
     "linux": {
       "target": [
         "AppImage",
         "deb"
       ],
+      "artifactName": "${name}_${version}_${arch}.${ext}",
       "icon": "build/icons",
-      "executableName": "chatgpt",
-      "maintainer": "Stephan Coertzen <coertzen.jfs@gmail.com>",
+      "executableName": "chatgpt-desktop",
+      "maintainer": "alter.daemon <alter.daemon.ivytq@passmail.com>",
       "category": "Utility"
     }
   }
