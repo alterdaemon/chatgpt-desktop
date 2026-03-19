@@ -14,6 +14,7 @@ const {
   Tray,
   Menu,
   nativeImage,
+  screen,
 } = require("electron");
 
 let cachedCss = "";
@@ -21,9 +22,13 @@ let cachedScripts = [];
 let allowQuit = false;
 let mainWindow = null;
 let tray = null;
+let spellCheckEnabled = false;
+const DEFAULT_SHOW_SHORTCUT = "CommandOrControl+Shift+Space";
+let showShortcut = DEFAULT_SHOW_SHORTCUT;
 
 app.commandLine.appendSwitch("disable-smooth-scrolling");
 app.commandLine.appendSwitch("disable-gpu-vsync");
+app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 
 function getConfigRoot() {
   return process.env.XDG_CONFIG_HOME || path.join(app.getPath("home"), ".config");
@@ -44,6 +49,7 @@ const appConfigPath = path.join(configRoot, "chatgpt-desktop");
 const appDataPath = path.join(dataRoot, "chatgpt-desktop");
 const stylesPath = path.join(appConfigPath, "styles");
 const scriptsPath = path.join(appConfigPath, "scripts");
+const settingsPath = path.join(appConfigPath, "settings.json");
 const cachePath = path.join(cacheRoot, "chatgpt-desktop");
 const crashDumpsPath = path.join(cachePath, "crashpad");
 
@@ -106,15 +112,123 @@ function loadScriptsOnce() {
   }
 }
 
-function showMainWindow() {
-  if (!mainWindow) return;
+function loadSettings() {
+  try {
+    const rawSettings = fs.readFileSync(settingsPath, "utf8");
+    const settings = JSON.parse(rawSettings);
+
+    if (typeof settings.spellCheckEnabled === "boolean") {
+      spellCheckEnabled = settings.spellCheckEnabled;
+    }
+
+    if (typeof settings.showShortcut === "string" && settings.showShortcut.trim()) {
+      showShortcut = settings.showShortcut.trim();
+    }
+  } catch {}
+}
+
+function saveSettings() {
+  try {
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify(
+        {
+          spellCheckEnabled,
+          showShortcut,
+        },
+        null,
+        2
+      ) + "\n"
+    );
+  } catch {}
+}
+
+function temporarilyShowOnAllWorkspaces(window) {
+  if (!window || window.isDestroyed() || typeof window.setVisibleOnAllWorkspaces !== "function") {
+    return;
+  }
+
+  try {
+    window.setVisibleOnAllWorkspaces(true);
+    setTimeout(() => {
+      if (!window.isDestroyed()) {
+        try {
+          window.setVisibleOnAllWorkspaces(false);
+        } catch {}
+      }
+    }, 1000);
+  } catch {}
+}
+
+function moveWindowToCurrentDisplay(window) {
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  try {
+    const currentDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    moveWindowToDisplay(window, currentDisplay);
+  } catch {}
+}
+
+function moveWindowToDisplay(window, display) {
+  if (!window || window.isDestroyed() || !display) {
+    return;
+  }
+
+  try {
+    const bounds = window.getBounds();
+    const workArea = display.workArea;
+    const x = Math.round(workArea.x + Math.max(0, (workArea.width - bounds.width) / 2));
+    const y = Math.round(workArea.y + Math.max(0, (workArea.height - bounds.height) / 2));
+
+    window.setPosition(x, y);
+  } catch {}
+}
+
+function revealMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const currentDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+
+  if (!mainWindow.isFocused() && mainWindow.isVisible()) {
+    mainWindow.hide();
+  }
 
   if (mainWindow.isMinimized()) {
     mainWindow.restore();
   }
 
+  moveWindowToDisplay(mainWindow, currentDisplay);
+  temporarilyShowOnAllWorkspaces(mainWindow);
   mainWindow.show();
+
+  if (typeof mainWindow.moveTop === "function") {
+    try {
+      mainWindow.moveTop();
+    } catch {}
+  }
+
+  try {
+    if (process.platform === "darwin") {
+      app.focus({ steal: true });
+    } else {
+      app.focus();
+    }
+  } catch {}
+
   mainWindow.focus();
+}
+
+function toggleMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  if (mainWindow.isFocused()) {
+    mainWindow.hide();
+    return;
+  }
+
+  revealMainWindow();
 }
 
 function requestQuit() {
@@ -127,6 +241,39 @@ function getTrayIcon() {
   return nativeImage.createFromPath(iconPath);
 }
 
+function applySpellCheckEnabled(window = mainWindow) {
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  const { session } = window.webContents;
+
+  if (typeof session.setSpellCheckerEnabled === "function") {
+    session.setSpellCheckerEnabled(spellCheckEnabled);
+  }
+
+  window.webContents
+    .executeJavaScript(
+      `(() => {
+        const enabled = ${spellCheckEnabled ? "true" : "false"};
+        const selectors = [
+          'textarea',
+          'input[type="text"]',
+          'input[type="search"]',
+          '[contenteditable="true"]',
+          '[role="textbox"]'
+        ];
+
+        for (const element of document.querySelectorAll(selectors.join(','))) {
+          element.spellcheck = enabled;
+          element.setAttribute('spellcheck', String(enabled));
+        }
+      })();`,
+      true
+    )
+    .catch(() => {});
+}
+
 function createAppMenu() {
   const menu = Menu.buildFromTemplate([
     {
@@ -134,7 +281,17 @@ function createAppMenu() {
       submenu: [
         {
           label: "Show",
-          click: () => showMainWindow(),
+          click: () => revealMainWindow(),
+        },
+        {
+          label: "Spellcheck",
+          type: "checkbox",
+          checked: spellCheckEnabled,
+          click: (menuItem) => {
+            spellCheckEnabled = menuItem.checked;
+            saveSettings();
+            applySpellCheckEnabled();
+          },
         },
         {
           label: "Quit",
@@ -159,7 +316,7 @@ function createTray() {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "Show",
-      click: () => showMainWindow(),
+      click: () => revealMainWindow(),
     },
     {
       type: "separator",
@@ -173,7 +330,7 @@ function createTray() {
   tray.setContextMenu(contextMenu);
 
   tray.on("click", () => {
-    showMainWindow();
+    revealMainWindow();
   });
 }
 
@@ -191,9 +348,12 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      spellcheck: spellCheckEnabled,
       devTools: false,
     },
   });
+
+  applySpellCheckEnabled(mainWindow);
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
@@ -226,6 +386,8 @@ function createWindow() {
   });
 
   mainWindow.webContents.on("did-finish-load", () => {
+    applySpellCheckEnabled(mainWindow);
+
     if (cachedCss) {
       mainWindow.webContents.insertCSS(cachedCss).catch(() => {});
     }
@@ -258,6 +420,8 @@ function createWindow() {
 
 app.whenReady().then(() => {
   ensureAppPaths();
+  loadSettings();
+  saveSettings();
   loadCssOnce();
   loadScriptsOnce();
   createAppMenu();
@@ -268,17 +432,21 @@ app.whenReady().then(() => {
     requestQuit();
   });
 
+  globalShortcut.register(showShortcut, () => {
+    toggleMainWindow();
+  });
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     } else {
-      showMainWindow();
+      revealMainWindow();
     }
   });
 });
 
 app.on("second-instance", () => {
-  showMainWindow();
+  revealMainWindow();
 });
 
 app.on("before-quit", () => {

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-03-19
+
+### Added
+- A spellcheck toggle in the application menu.
+- Persisted application settings under `~/.config/chatgpt-desktop/settings.json`, currently used for the spellcheck preference.
+- A configurable global `showShortcut` setting for showing or hiding the app from anywhere.
+
+### Changed
+- Disable spellcheck by default and allow enabling it from the app menu.
+- Apply the spellcheck setting immediately to the active ChatGPT input UI and keep it across restarts.
+- Reuse the running instance on second launch and bring the window back through the same fast reveal path.
+- Make the global shortcut behave as a focused-window hide toggle and otherwise reopen the app on the current display and workspace.
+
 ## [1.2.0] - 2026-03-19
 
 ### Added

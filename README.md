@@ -68,6 +68,43 @@ Crash dump data is stored under:
 
 `~/.cache/chatgpt-desktop/crashpad`
 
+Application settings are stored under:
+
+`~/.config/chatgpt-desktop/settings.json`
+
+Current settings include:
+
+- `spellCheckEnabled`
+- `showShortcut`
+
+## App Menu
+
+The application menu includes a spellcheck toggle.
+
+Spellcheck is disabled by default and its state is saved across restarts.
+
+## Global Show/Hide Shortcut
+
+The app supports a configurable global shortcut stored in:
+
+`~/.config/chatgpt-desktop/settings.json`
+
+Default value:
+
+```json
+{
+  "showShortcut": "CommandOrControl+Shift+Space"
+}
+```
+
+Behavior:
+
+- If the ChatGPT window is focused, the shortcut hides it.
+- If the ChatGPT window is not focused, the shortcut hides it first if needed, then reopens it on the current display and workspace.
+- Launching the app again while it is already running reuses the same reveal behavior.
+
+The shortcut value uses Electron accelerator syntax.
+
 ## Build Linux packages
 
 ```bash
@@ -80,7 +117,7 @@ Build outputs are generated in `dist/`:
 
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.2.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.3.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 The workflow runs on GitHub-hosted Ubuntu and produces:
 
@@ -89,10 +126,10 @@ The workflow runs on GitHub-hosted Ubuntu and produces:
 
 ```bash
 git add .
-git commit -m "feat: release chatgpt-desktop v1.2.0 with custom JavaScript support"
-git tag v1.2.0
+git commit -m "feat: release chatgpt-desktop v1.3.0 with persisted settings and global show shortcut"
+git tag v1.3.0
 git push origin main
-git push origin v1.2.0
+git push origin v1.3.0
 ```
 
 The tag push is what triggers the release workflow.
