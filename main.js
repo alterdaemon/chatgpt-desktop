@@ -17,6 +17,7 @@ const {
 } = require("electron");
 
 let cachedCss = "";
+let cachedScripts = [];
 let allowQuit = false;
 let mainWindow = null;
 let tray = null;
@@ -42,6 +43,7 @@ const cacheRoot = getCacheRoot();
 const appConfigPath = path.join(configRoot, "chatgpt-desktop");
 const appDataPath = path.join(dataRoot, "chatgpt-desktop");
 const stylesPath = path.join(appConfigPath, "styles");
+const scriptsPath = path.join(appConfigPath, "scripts");
 const cachePath = path.join(cacheRoot, "chatgpt-desktop");
 const crashDumpsPath = path.join(cachePath, "crashpad");
 
@@ -58,17 +60,12 @@ function getExternalCssPath() {
   return path.join(stylesPath, "custom.css");
 }
 
-function getLegacyExternalCssPath() {
-  const appImagePath = process.env.APPIMAGE || app.getPath("exe");
-  return path.join(path.dirname(appImagePath), "custom.css");
-}
-
 function getBundledCssPath() {
   return path.join(__dirname, "custom.css");
 }
 
 function ensureAppPaths() {
-  for (const dirPath of [appConfigPath, appDataPath, stylesPath, cachePath, crashDumpsPath]) {
+  for (const dirPath of [appConfigPath, appDataPath, stylesPath, scriptsPath, cachePath, crashDumpsPath]) {
     try {
       fs.mkdirSync(dirPath, { recursive: true });
     } catch {}
@@ -77,7 +74,6 @@ function ensureAppPaths() {
 
 function loadCssOnce() {
   const externalCss = getExternalCssPath();
-  const legacyExternalCss = getLegacyExternalCssPath();
   const bundledCss = getBundledCssPath();
 
   try {
@@ -88,16 +84,25 @@ function loadCssOnce() {
   } catch {}
 
   try {
-    if (fs.existsSync(legacyExternalCss)) {
-      cachedCss = fs.readFileSync(legacyExternalCss, "utf8");
-      return;
-    }
-  } catch {}
-
-  try {
     cachedCss = fs.readFileSync(bundledCss, "utf8");
   } catch {
     cachedCss = "";
+  }
+}
+
+function loadScriptsOnce() {
+  try {
+    cachedScripts = fs
+      .readdirSync(scriptsPath, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b))
+      .map((fileName) => ({
+        fileName,
+        script: fs.readFileSync(path.join(scriptsPath, fileName), "utf8"),
+      }));
+  } catch {
+    cachedScripts = [];
   }
 }
 
@@ -226,12 +231,35 @@ function createWindow() {
     }
   });
 
+  const injectScripts = async () => {
+    if (!mainWindow || mainWindow.isDestroyed() || cachedScripts.length === 0) {
+      return;
+    }
+
+    for (const { fileName, script } of cachedScripts) {
+      try {
+        await mainWindow.webContents.executeJavaScript(script);
+      } catch (error) {
+        console.error(`Failed to execute script ${fileName}:`, error);
+      }
+    }
+  };
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    injectScripts().catch(() => {});
+  });
+
+  mainWindow.webContents.on("did-navigate-in-page", () => {
+    injectScripts().catch(() => {});
+  });
+
   mainWindow.loadURL("https://chatgpt.com");
 }
 
 app.whenReady().then(() => {
   ensureAppPaths();
   loadCssOnce();
+  loadScriptsOnce();
   createAppMenu();
   createWindow();
   createTray();

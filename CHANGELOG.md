@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-03-19
+
+### Added
+- Refine the README description and add a short trust-oriented project preamble for users who prefer to inspect and build from source.
+- Optional custom JavaScript support from `~/.config/chatgpt-desktop/scripts/`.
+- Example customization files and script references under `resources/examples/`.
+
+### Changed
+- Limit external custom CSS loading to `~/.config/chatgpt-desktop/styles/custom.css`.
+- Execute all user scripts in alphabetical order after page load and in-page navigation.
+- Continue loading the app when a user script fails, while logging the script error to the console.
+
 ## [1.1.0] - 2026-03-18
 
 ### Added

@@ -1,0 +1,127 @@
+/* terminal typography */
+html, body, textarea, input, button, select, option, pre, code {
+    font-family: monospace !important;
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+}
+
+/* remove rounded corners */
+*, *::before, *::after {
+    border-radius: 0 !important;
+}
+
+/* kill Tailwind rounded utilities */
+[class*="rounded"] {
+    border-radius: 0 !important;
+}
+
+/* main chat width
+   keep only max-width, never force width on every max-w container
+*/
+main [class*="max-w-"],
+main .xl\:max-w-3xl,
+main .lg\:max-w-3xl,
+main .md\:max-w-3xl,
+main .max-w-3xl,
+main .max-w-4xl,
+main .max-w-\[var\(--thread-content-max-width\)\] {
+    max-width: 50vw !important;
+}
+
+/* reduce visual overhead
+   IMPORTANT: no more `main *` or `main *::before/after`
+*/
+main,
+main article,
+main [data-message-author-role],
+[class*="stream"],
+[class*="typing"],
+[class*="cursor"],
+[data-testid*="typing"],
+form,
+form textarea,
+form [contenteditable="true"],
+[role="textbox"] {
+    animation: none !important;
+    transition: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+}
+
+main article {
+    contain: layout style paint !important;
+}
+
+/* remove blur only where useful */
+main [class*="backdrop"],
+main [class*="blur"],
+main [data-radix-popper-content-wrapper],
+form,
+form textarea,
+form [contenteditable="true"],
+[role="textbox"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* tighter message spacing */
+main article,
+main [data-message-author-role],
+main [class*="conversation-turn"],
+main [class*="group/conversation-turn"] {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
+}
+
+/* hide disclaimer row */
+[view-transition-name*="disclaimer"],
+div.-mt-4.text-token-text-secondary.relative.w-full.overflow-hidden.text-center.text-xs,
+div[class*="text-token-text-secondary"][class*="text-center"][class*="text-xs"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+}
+
+/* input cleanup */
+form textarea,
+form [contenteditable="true"],
+[role="textbox"] {
+    box-shadow: none !important;
+    filter: none !important;
+    outline: none !important;
+    resize: none !important;
+    text-rendering: optimizeSpeed !important;
+    min-height: 36px !important;
+    max-height: 220px !important;
+    line-height: 1.35 !important;
+    padding: 6px 8px !important;
+}
+
+/* avoid smooth scroll jank during streamed output */
+html, body {
+    scroll-behavior: auto !important;
+}
+
+/* external/source links: keep natural width */
+main a[href^="http"],
+main a[href^="https"],
+main a[rel~="noopener"] {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: fit-content !important;
+}
+
+/* tiny source icons should stay tiny */
+main a svg,
+main a img {
+    max-width: 16px;
+    max-height: 16px;
+}
