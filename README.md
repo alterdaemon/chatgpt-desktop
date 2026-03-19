@@ -96,3 +96,11 @@ git push origin v1.2.0
 ```
 
 The tag push is what triggers the release workflow.
+
+## Issues
+
+Bug reports and practical feature requests are welcome through GitHub Issues.
+
+Before opening a new issue, please check whether it already exists and include enough detail to reproduce the problem.
+
+This project is small and Linux-focused, so support and feature work will stay scoped accordingly.
