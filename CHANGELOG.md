@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-03-20
+
+### Added
+- `Hide`, `Refresh`, `Zoom`, `Save Settings`, `About`, and `Help` actions to the application menu and tray menu.
+- A persisted `zoomFactor` setting in `~/.config/chatgpt-desktop/settings.json`.
+- A simple About dialog that shows app, Node, V8, Chrome, and Electron versions.
+
+### Changed
+- Reuse the same lightweight menu action set in both the hidden app menu bar and the tray menu.
+- Allow the current zoom level to be saved and restored across restarts.
+
 ## [1.3.0] - 2026-03-19
 
 ### Added

@@ -6,20 +6,78 @@ html, body, textarea, input, button, select, option, pre, code {
     line-height: 1.35 !important;
 }
 
-/* remove rounded corners */
-*, *::before, *::after {
-    border-radius: 0 !important;
-}
-
-/* kill Tailwind rounded utilities */
-[class*="rounded"] {
+/* remove rounded corners on ChatGPT UI surfaces only */
+main article,
+main article > div,
+main article section,
+main [data-message-author-role],
+main [data-message-author-role] > div,
+main [data-message-author-role] > div > div,
+main pre,
+main pre *,
+main code,
+main code *,
+main [data-message-author-role] pre,
+main [data-message-author-role] pre *,
+main [data-message-author-role] code,
+main [data-message-author-role] code *,
+main table,
+main th,
+main td,
+main blockquote,
+main img,
+main button,
+main input,
+main textarea,
+main [role="button"],
+main [role="textbox"],
+aside button,
+aside a,
+aside [role="button"],
+nav button,
+nav a,
+nav [role="button"],
+header button,
+header a,
+header [role="button"],
+form.group\/composer,
+form.group\/composer > div,
+form.group\/composer button,
+form.group\/composer textarea,
+form.group\/composer [role="group"],
+form[data-type="unified-composer"],
+form[data-type="unified-composer"] > div,
+form[data-type="unified-composer"] button,
+form[data-type="unified-composer"] textarea,
+form[data-type="unified-composer"] [role="group"],
+#prompt-textarea,
+#prompt-textarea > div,
+[role="dialog"],
+[role="dialog"] > div,
+[role="dialog"] button,
+[role="dialog"] input,
+[role="dialog"] textarea,
+[role="dialog"] select,
+[role="dialog"] [role="button"],
+[role="dialog"] [role="menuitem"],
+[role="dialog"] [role="option"],
+[role="menu"],
+[role="menu"] [role="menuitem"],
+[role="listbox"],
+[role="listbox"] [role="option"],
+[data-radix-popper-content-wrapper],
+[data-radix-popper-content-wrapper] [role="dialog"],
+[data-radix-popper-content-wrapper] button,
+[data-radix-popper-content-wrapper] [role="menu"],
+[data-radix-popper-content-wrapper] [role="menuitem"],
+[data-radix-popper-content-wrapper] [role="listbox"],
+[data-radix-popper-content-wrapper] [role="option"] {
     border-radius: 0 !important;
 }
 
 /* main chat width
    keep only max-width, never force width on every max-w container
 */
-main [class*="max-w-"],
 main .xl\:max-w-3xl,
 main .lg\:max-w-3xl,
 main .md\:max-w-3xl,
@@ -35,41 +93,27 @@ main .max-w-\[var\(--thread-content-max-width\)\] {
 main,
 main article,
 main [data-message-author-role],
-[class*="stream"],
-[class*="typing"],
-[class*="cursor"],
-[data-testid*="typing"],
-form,
-form textarea,
-form [contenteditable="true"],
-[role="textbox"] {
+form.group\/composer,
+form[data-type="unified-composer"],
+#prompt-textarea {
     animation: none !important;
     transition: none !important;
     text-shadow: none !important;
     box-shadow: none !important;
 }
 
-main article {
-    contain: layout style paint !important;
-}
-
 /* remove blur only where useful */
-main [class*="backdrop"],
-main [class*="blur"],
 main [data-radix-popper-content-wrapper],
-form,
-form textarea,
-form [contenteditable="true"],
-[role="textbox"] {
+form.group\/composer,
+form[data-type="unified-composer"],
+#prompt-textarea {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
 
 /* tighter message spacing */
 main article,
-main [data-message-author-role],
-main [class*="conversation-turn"],
-main [class*="group/conversation-turn"] {
+main [data-message-author-role] {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
     padding-top: 0.2rem !important;
@@ -77,9 +121,7 @@ main [class*="group/conversation-turn"] {
 }
 
 /* hide disclaimer row */
-[view-transition-name*="disclaimer"],
-div.-mt-4.text-token-text-secondary.relative.w-full.overflow-hidden.text-center.text-xs,
-div[class*="text-token-text-secondary"][class*="text-center"][class*="text-xs"] {
+div.-mt-4.text-token-text-secondary.relative.w-full.overflow-hidden.text-center.text-xs {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;
@@ -91,14 +133,12 @@ div[class*="text-token-text-secondary"][class*="text-center"][class*="text-xs"] 
 }
 
 /* input cleanup */
-form textarea,
-form [contenteditable="true"],
-[role="textbox"] {
+form.group\/composer textarea,
+#prompt-textarea {
     box-shadow: none !important;
     filter: none !important;
     outline: none !important;
     resize: none !important;
-    text-rendering: optimizeSpeed !important;
     min-height: 36px !important;
     max-height: 220px !important;
     line-height: 1.35 !important;
@@ -124,4 +164,61 @@ main a svg,
 main a img {
     max-width: 16px;
     max-height: 16px;
+}
+
+
+/* input box */
+
+form.group\/composer,
+form[data-type="unified-composer"] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding-top: 8px !important;
+}
+form.group\/composer > div,
+form[data-type="unified-composer"] > div {
+  background: rgba(20, 20, 20, 0.85) !important;
+  border: 1px solid rgba(128, 128, 128, 0.35) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 10px !important;
+}
+/* Keep only near-inner wrappers transparent */
+form.group\/composer > div > div,
+form[data-type="unified-composer"] > div > div,
+#prompt-textarea,
+#prompt-textarea > div {
+  background: transparent !important;
+}
+/* Editable input itself */
+#prompt-textarea,
+#prompt-textarea.ProseMirror {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: #fff !important;
+  font-size: 15px !important;
+  line-height: 1.4 !important;
+  padding: 0 !important;
+  min-height: 30px !important;
+}
+#prompt-textarea p.is-empty::before,
+#prompt-textarea [data-placeholder]::before {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+form.group\/composer [role="group"],
+form[data-type="unified-composer"] [role="group"] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+form.group\/composer button,
+form[data-type="unified-composer"] button {
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }

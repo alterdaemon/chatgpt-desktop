@@ -15,6 +15,7 @@ const {
   Menu,
   nativeImage,
   screen,
+  dialog,
 } = require("electron");
 
 let cachedCss = "";
@@ -23,8 +24,10 @@ let allowQuit = false;
 let mainWindow = null;
 let tray = null;
 let spellCheckEnabled = false;
+let zoomFactor = 1;
 const DEFAULT_SHOW_SHORTCUT = "CommandOrControl+Shift+Space";
 let showShortcut = DEFAULT_SHOW_SHORTCUT;
+const REPO_URL = "https://github.com/alterdaemon/chatgpt-desktop";
 
 app.commandLine.appendSwitch("disable-smooth-scrolling");
 app.commandLine.appendSwitch("disable-gpu-vsync");
@@ -124,6 +127,10 @@ function loadSettings() {
     if (typeof settings.showShortcut === "string" && settings.showShortcut.trim()) {
       showShortcut = settings.showShortcut.trim();
     }
+
+    if (typeof settings.zoomFactor === "number" && Number.isFinite(settings.zoomFactor)) {
+      zoomFactor = Math.min(3, Math.max(0.5, settings.zoomFactor));
+    }
   } catch {}
 }
 
@@ -135,6 +142,7 @@ function saveSettings() {
         {
           spellCheckEnabled,
           showShortcut,
+          zoomFactor,
         },
         null,
         2
@@ -236,6 +244,114 @@ function requestQuit() {
   app.quit();
 }
 
+function hideMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.hide();
+}
+
+function refreshMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.reload();
+}
+
+function getCurrentZoomFactor() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return zoomFactor;
+  }
+
+  try {
+    return mainWindow.webContents.getZoomFactor();
+  } catch {
+    return zoomFactor;
+  }
+}
+
+function applyZoomFactor(value) {
+  zoomFactor = Math.min(3, Math.max(0.5, value));
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  try {
+    mainWindow.webContents.setZoomFactor(zoomFactor);
+  } catch {}
+}
+
+function zoomIn() {
+  applyZoomFactor(getCurrentZoomFactor() + 0.1);
+}
+
+function zoomOut() {
+  applyZoomFactor(getCurrentZoomFactor() - 0.1);
+}
+
+function resetZoom() {
+  applyZoomFactor(1);
+}
+
+function toggleFullScreen() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.setFullScreen(!mainWindow.isFullScreen());
+}
+
+function saveCurrentSettings() {
+  zoomFactor = getCurrentZoomFactor();
+  saveSettings();
+}
+
+function showAbout() {
+  dialog.showMessageBox({
+    type: "info",
+    title: "About ChatGPT Desktop",
+    message: "ChatGPT Desktop (Unofficial)",
+    detail: [
+      `Version: ${app.getVersion()}`,
+      `Node: ${process.versions.node}`,
+      `V8: ${process.versions.v8}`,
+      `Chrome: ${process.versions.chrome}`,
+      `Electron: ${process.versions.electron}`,
+    ].join("\n"),
+    buttons: ["OK"],
+  }).catch(() => {});
+}
+
+function openHelp() {
+  shell.openExternal(REPO_URL);
+}
+
+function getZoomSubmenu() {
+  return [
+    {
+      label: "Actual",
+      click: () => resetZoom(),
+    },
+    {
+      label: "Zoom In",
+      accelerator: "CommandOrControl+Plus",
+      click: () => zoomIn(),
+    },
+    {
+      label: "Zoom Out",
+      accelerator: "CommandOrControl+-",
+      click: () => zoomOut(),
+    },
+    {
+      label: "Full Screen",
+      click: () => toggleFullScreen(),
+    },
+  ];
+}
+
 function getTrayIcon() {
   const iconPath = path.join(__dirname, "build", "icons", "icon.png");
   return nativeImage.createFromPath(iconPath);
@@ -274,6 +390,18 @@ function applySpellCheckEnabled(window = mainWindow) {
     .catch(() => {});
 }
 
+function updateSpellCheck(enabled) {
+  spellCheckEnabled = enabled;
+  saveSettings();
+  applySpellCheckEnabled();
+  createAppMenu();
+  updateTrayMenu();
+}
+
+function getTraySpellCheckLabel() {
+  return spellCheckEnabled ? "Spellcheck ✓" : "Spellcheck";
+}
+
 function createAppMenu() {
   const menu = Menu.buildFromTemplate([
     {
@@ -284,14 +412,34 @@ function createAppMenu() {
           click: () => revealMainWindow(),
         },
         {
+          label: "Hide",
+          click: () => hideMainWindow(),
+        },
+        {
+          label: "Refresh",
+          click: () => refreshMainWindow(),
+        },
+        {
+          label: "Zoom",
+          submenu: getZoomSubmenu(),
+        },
+        {
           label: "Spellcheck",
           type: "checkbox",
           checked: spellCheckEnabled,
-          click: (menuItem) => {
-            spellCheckEnabled = menuItem.checked;
-            saveSettings();
-            applySpellCheckEnabled();
-          },
+          click: (menuItem) => updateSpellCheck(menuItem.checked),
+        },
+        {
+          label: "Save Settings",
+          click: () => saveCurrentSettings(),
+        },
+        {
+          label: "About",
+          click: () => showAbout(),
+        },
+        {
+          label: "Help",
+          click: () => openHelp(),
         },
         {
           label: "Quit",
@@ -305,18 +453,39 @@ function createAppMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-function createTray() {
-  if (tray) return;
-
-  tray = new Tray(getTrayIcon());
-
-  tray.setToolTip("ChatGPT");
-  tray.setTitle("ChatGPT");
-
-  const contextMenu = Menu.buildFromTemplate([
+function buildTrayMenu() {
+  return Menu.buildFromTemplate([
     {
       label: "Show",
       click: () => revealMainWindow(),
+    },
+    {
+      label: "Hide",
+      click: () => hideMainWindow(),
+    },
+    {
+      label: "Refresh",
+      click: () => refreshMainWindow(),
+    },
+    {
+      label: "Zoom",
+      submenu: getZoomSubmenu(),
+    },
+    {
+      label: getTraySpellCheckLabel(),
+      click: () => updateSpellCheck(!spellCheckEnabled),
+    },
+    {
+      label: "Save Settings",
+      click: () => saveCurrentSettings(),
+    },
+    {
+      label: "About",
+      click: () => showAbout(),
+    },
+    {
+      label: "Help",
+      click: () => openHelp(),
     },
     {
       type: "separator",
@@ -326,8 +495,25 @@ function createTray() {
       click: () => requestQuit(),
     },
   ]);
+}
 
-  tray.setContextMenu(contextMenu);
+function updateTrayMenu() {
+  if (!tray) {
+    return;
+  }
+
+  tray.setContextMenu(buildTrayMenu());
+}
+
+function createTray() {
+  if (tray) return;
+
+  tray = new Tray(getTrayIcon());
+
+  tray.setToolTip("ChatGPT");
+  tray.setTitle("ChatGPT");
+
+  updateTrayMenu();
 
   tray.on("click", () => {
     revealMainWindow();
@@ -354,10 +540,7 @@ function createWindow() {
   });
 
   applySpellCheckEnabled(mainWindow);
-
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
-  });
+  applyZoomFactor(zoomFactor);
 
   mainWindow.on("close", (e) => {
     if (!allowQuit) {
@@ -385,14 +568,6 @@ function createWindow() {
     return { action: "deny" };
   });
 
-  mainWindow.webContents.on("did-finish-load", () => {
-    applySpellCheckEnabled(mainWindow);
-
-    if (cachedCss) {
-      mainWindow.webContents.insertCSS(cachedCss).catch(() => {});
-    }
-  });
-
   const injectScripts = async () => {
     if (!mainWindow || mainWindow.isDestroyed() || cachedScripts.length === 0) {
       return;
@@ -407,11 +582,32 @@ function createWindow() {
     }
   };
 
+  const applyCustomizations = async () => {
+    applyZoomFactor(zoomFactor);
+    applySpellCheckEnabled(mainWindow);
+
+    if (cachedCss) {
+      try {
+        await mainWindow.webContents.insertCSS(cachedCss);
+      } catch {}
+    }
+    await injectScripts();
+
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  };
+
   mainWindow.webContents.on("did-finish-load", () => {
-    injectScripts().catch(() => {});
+    applyCustomizations().catch(() => {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+    });
   });
 
   mainWindow.webContents.on("did-navigate-in-page", () => {
+    applyZoomFactor(zoomFactor);
     injectScripts().catch(() => {});
   });
 

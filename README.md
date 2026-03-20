@@ -76,12 +76,25 @@ Current settings include:
 
 - `spellCheckEnabled`
 - `showShortcut`
+- `zoomFactor`
 
-## App Menu
+## App Menu and Tray Menu
 
-The application menu includes a spellcheck toggle.
+The application menu and tray menu include:
+
+- `Show`
+- `Hide`
+- `Refresh`
+- `Zoom` submenu with `Actual`, `Zoom In`, `Zoom Out`, and `Full Screen`
+- `Spellcheck`
+- `Save Settings`
+- `About`
+- `Help`
+- `Quit`
 
 Spellcheck is disabled by default and its state is saved across restarts.
+
+`Save Settings` currently persists app-owned settings such as spellcheck, the global shortcut, and the current zoom factor.
 
 ## Global Show/Hide Shortcut
 
@@ -105,6 +118,12 @@ Behavior:
 
 The shortcut value uses Electron accelerator syntax.
 
+## Zoom
+
+The app supports manual zoom controls from the app menu and tray menu.
+
+Use `Save Settings` if you want the current zoom level to persist across restarts.
+
 ## Build Linux packages
 
 ```bash
@@ -117,7 +136,7 @@ Build outputs are generated in `dist/`:
 
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.3.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.3.1`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 The workflow runs on GitHub-hosted Ubuntu and produces:
 
@@ -126,10 +145,10 @@ The workflow runs on GitHub-hosted Ubuntu and produces:
 
 ```bash
 git add .
-git commit -m "feat: release chatgpt-desktop v1.3.0 with persisted settings and global show shortcut"
-git tag v1.3.0
+git commit -m "feat: release chatgpt-desktop v1.3.1 with menu controls and persistent zoom setting"
+git tag v1.3.1
 git push origin main
-git push origin v1.3.0
+git push origin v1.3.1
 ```
 
 The tag push is what triggers the release workflow.
