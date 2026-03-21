@@ -129,8 +129,8 @@ The app includes Vimium-style navigation keys when focus is not inside an input,
 - `d` / `u`: scroll down or up by about half a page
 - `gg` / `G`: jump to the top or bottom of the current scrollable view
 - `gi`: focus the main visible input/editor
-- `f`: show link hints for visible clickable elements across the current ChatGPT UI and follow the selected target in place
-- `F`: show link hints across the current ChatGPT UI and try to open anchor targets with alternate follow behavior (`window.open`) when available
+- `f`: show link hints for visible clickable elements across the current ChatGPT conversation UI, including the main thread, sidebar controls, and header actions, and follow the selected target in place
+- `F`: show link hints across the current ChatGPT conversation UI and try to open anchor targets with alternate follow behavior (`window.open`) when available
 - `Esc`: cancel hint mode or leave the active input/editor
 
 These bindings are ignored while you are typing in the ChatGPT prompt or another editable control, so normal text entry is preserved.
@@ -155,7 +155,7 @@ Build outputs are generated in `dist/`:
 
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.4.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.4.1`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 The workflow runs on GitHub-hosted Ubuntu and produces:
 
@@ -164,10 +164,10 @@ The workflow runs on GitHub-hosted Ubuntu and produces:
 
 ```bash
 git add .
-git commit -m "feat: release chatgpt-desktop v1.4.0 with built-in keyboard navigation and main-pane link hints"
-git tag v1.4.0
+git commit -m "fix: release chatgpt-desktop v1.4.1 with faster targeted UI hint navigation"
+git tag v1.4.1
 git push origin main
-git push origin v1.4.0
+git push origin v1.4.1
 ```
 
 The tag push is what triggers the release workflow.

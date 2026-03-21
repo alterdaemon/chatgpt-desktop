@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2026-03-21
+
+### Changed
+- Simplified Vimium-style hint generation around explicit ChatGPT DOM targets for faster, more reliable link hinting across the main conversation area, sidebar controls, and header actions.
+- Fixed hint discovery after scrolling or sidebar layout changes so `f` and `F` rebuild targets for the current visible UI instead of using stale positions.
+- Improved hint marker placement for cramped header controls and tightened activation handling for custom menu buttons such as the profile/settings menu.
+
 ## [1.4.0] - 2026-03-21
 
 ### Added

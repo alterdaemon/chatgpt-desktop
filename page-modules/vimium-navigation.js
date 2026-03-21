@@ -16,25 +16,12 @@
   const MAX_HINT_CANDIDATES = 420;
   const KEY_SEQUENCE_TIMEOUT_MS = 1500;
   const MIN_VISIBLE_HINT_SIZE = 6;
-  const MAIN_ROOT_SELECTOR = [
-    "main",
-    "[role='main']",
-    "main[role='main']",
-    "article"
-  ].join(",");
-  const SIDEBAR_ROOT_SELECTOR = [
-    "aside",
-    "nav[aria-label]",
-    "nav",
-    "[role='navigation']"
-  ].join(",");
-  const TOP_CHROME_ROOT_SELECTOR = [
-    "header",
-    "[role='banner']",
-    "body > div:first-child",
-    "body > div[style*='position: sticky']",
-    "body > div[style*='position:fixed']"
-  ].join(",");
+  const CHAT_SCROLL_ROOT_SELECTOR = "[data-scroll-root]";
+  const CHAT_MAIN_ROOT_SELECTOR = "main #thread, main";
+  const CHAT_SIDEBAR_ROOT_SELECTOR = "#stage-slideover-sidebar, nav[aria-label='Chat history']";
+  const CHAT_HEADER_ROOT_SELECTOR = "#page-header";
+  const CHAT_TINY_BAR_SELECTOR = "#stage-sidebar-tiny-bar";
+  const SIDEBAR_HINT_SELECTOR = "[data-sidebar-item='true'], [data-testid='close-sidebar-button'], #sidebar-header a, #sidebar-header button";
   const INTERACTIVE_SELECTOR = [
     "a[href]",
     "button",
@@ -142,11 +129,14 @@
       if (
         style.visibility === "hidden" ||
         style.display === "none" ||
-        style.pointerEvents === "none" ||
         Number.parseFloat(style.opacity || "1") <= 0.01 ||
         current.hasAttribute("inert") ||
         current.getAttribute("aria-hidden") === "true"
       ) {
+        return false;
+      }
+
+      if (current === element && style.pointerEvents === "none") {
         return false;
       }
     }
@@ -154,44 +144,8 @@
     return true;
   }
 
-  function hasVisibleRenderingCached(element, visibilityCache) {
-    if (!(element instanceof HTMLElement)) {
-      return false;
-    }
-
-    if (!(visibilityCache instanceof Map)) {
-      return hasVisibleRendering(element);
-    }
-
-    if (visibilityCache.has(element)) {
-      return visibilityCache.get(element);
-    }
-
-    const parentVisible = element.parentElement ? hasVisibleRenderingCached(element.parentElement, visibilityCache) : true;
-    if (!parentVisible) {
-      visibilityCache.set(element, false);
-      return false;
-    }
-
-    const style = window.getComputedStyle(element);
-    const visible = !(
-      style.visibility === "hidden" ||
-      style.display === "none" ||
-      style.pointerEvents === "none" ||
-      Number.parseFloat(style.opacity || "1") <= 0.01 ||
-      element.hasAttribute("inert") ||
-      element.getAttribute("aria-hidden") === "true"
-    );
-    visibilityCache.set(element, visible);
-    return visible;
-  }
-
   function canInteractWithElement(element) {
     return hasVisibleRendering(element) && !element.hasAttribute("disabled") && element.getAttribute("aria-disabled") !== "true";
-  }
-
-  function canInteractWithElementCached(element, visibilityCache) {
-    return element instanceof HTMLElement && hasVisibleRenderingCached(element, visibilityCache) && !element.hasAttribute("disabled") && element.getAttribute("aria-disabled") !== "true";
   }
 
   function getHintRect(element) {
@@ -204,44 +158,6 @@
       x: clamp(Math.round(rect.left + Math.min(Math.max(rect.width * 0.35, 8), rect.width / 2)), 0, Math.max(0, window.innerWidth - 1)),
       y: clamp(Math.round(rect.top + Math.min(Math.max(rect.height * 0.35, 8), rect.height / 2)), 0, Math.max(0, window.innerHeight - 1))
     };
-  }
-
-  function isSidebarSecondaryControl(element, rect, metricsCache, visibilityCache) {
-    const sidebarRoot = element.closest("aside, nav, [role='navigation']");
-    if (!(sidebarRoot instanceof HTMLElement)) {
-      return false;
-    }
-
-    const row = element.closest("li, [role='listitem'], [role='treeitem'], [role='option']");
-    if (!(row instanceof HTMLElement)) {
-      return false;
-    }
-
-    if (rect.width > 72 || rect.height > 56) {
-      return false;
-    }
-
-    const siblingTargets = Array.from(row.querySelectorAll(INTERACTIVE_SELECTOR)).filter((candidate) => {
-      if (!(candidate instanceof HTMLElement) || candidate === element) {
-        return false;
-      }
-
-      const metrics = metricsCache instanceof Map
-        ? getVisibleHintMetricsWithCaches(candidate, metricsCache, visibilityCache)
-        : getVisibleHintMetrics(candidate);
-      if (!metrics) {
-        return false;
-      }
-
-      const overlapsVertically = metrics.rect.bottom > rect.top && metrics.rect.top < rect.bottom;
-      return overlapsVertically && metrics.rect.width >= Math.max(rect.width * 2, 120) && metrics.rect.left <= rect.left;
-    });
-
-    return siblingTargets.length > 0;
-  }
-
-  function isSidebarHintTarget(element) {
-    return element instanceof HTMLElement && element.closest("aside, nav, [role='navigation']") instanceof HTMLElement;
   }
 
   function getInteractiveCandidate(element, selector) {
@@ -329,44 +245,6 @@
     return resolveInteractiveAtPoint(probe.x, probe.y, selector);
   }
 
-  function collectTopChromeCandidates(topChromeRoot) {
-    const candidates = [];
-    if (!(topChromeRoot instanceof HTMLElement)) {
-      return candidates;
-    }
-
-    const rect = topChromeRoot.getBoundingClientRect();
-    const startX = clamp(Math.round(Math.max(rect.left, window.innerWidth * 0.52)), 0, Math.max(0, window.innerWidth - 1));
-    const endX = clamp(Math.round(rect.right), 0, Math.max(0, window.innerWidth - 1));
-    const startY = clamp(Math.round(Math.max(rect.top, 0) + 8), 0, Math.max(0, window.innerHeight - 1));
-    const endY = clamp(Math.round(Math.min(rect.bottom, 168)), 0, Math.max(0, window.innerHeight - 1));
-    const stepX = 48;
-    const stepY = 22;
-
-    for (let y = startY; y <= endY; y += stepY) {
-      for (let x = startX; x <= endX; x += stepX) {
-        const candidate = resolveInteractiveAtPoint(x, y, SUPPLEMENTAL_INTERACTIVE_SELECTOR);
-        if (candidate instanceof HTMLElement && topChromeRoot.contains(candidate) && !isSidebarHintTarget(candidate)) {
-          candidates.push(candidate);
-        }
-      }
-    }
-
-    return candidates;
-  }
-
-  function isTopChromeHintTarget(element, rect) {
-    if (!(element instanceof HTMLElement) || isSidebarHintTarget(element)) {
-      return false;
-    }
-
-    if (element.closest("header, [role='banner']") instanceof HTMLElement) {
-      return true;
-    }
-
-    return rect.top <= 140 && rect.right >= window.innerWidth * 0.55;
-  }
-
   function getViewportIntersectionArea(rect) {
     const width = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
     const height = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
@@ -441,100 +319,26 @@
   }
 
   function getMainInteractiveRoot() {
-    const candidates = Array.from(document.querySelectorAll(MAIN_ROOT_SELECTOR)).filter((element) => {
+    for (const element of document.querySelectorAll(CHAT_MAIN_ROOT_SELECTOR)) {
       if (!(element instanceof HTMLElement)) {
-        return false;
+        continue;
       }
 
       const rect = element.getBoundingClientRect();
-      return getViewportIntersectionArea(rect) > 0 && rect.width > 240 && rect.height > 240;
-    });
-
-    candidates.sort((left, right) => {
-      const leftRect = left.getBoundingClientRect();
-      const rightRect = right.getBoundingClientRect();
-      const leftArea = getViewportIntersectionArea(leftRect);
-      const rightArea = getViewportIntersectionArea(rightRect);
-
-      if (rightArea !== leftArea) {
-        return rightArea - leftArea;
-      }
-
-      return Math.abs(leftRect.left) - Math.abs(rightRect.left);
-    });
-
-    if (candidates[0]) {
-      return candidates[0];
-    }
-
-    const probePoints = [
-      [window.innerWidth * 0.5, window.innerHeight * 0.2],
-      [window.innerWidth * 0.5, window.innerHeight * 0.5],
-      [window.innerWidth * 0.5, window.innerHeight * 0.8]
-    ];
-
-    const fallbackRoots = new Map();
-    for (const [x, y] of probePoints) {
-      for (const node of document.elementsFromPoint(Math.round(x), Math.round(y))) {
-        if (!(node instanceof HTMLElement)) {
-          continue;
-        }
-
-        for (let current = node; current && current !== document.body; current = current.parentElement) {
-          const rect = current.getBoundingClientRect();
-          const area = getViewportIntersectionArea(rect);
-
-          if (area <= 0 || rect.width < 280 || rect.height < 280) {
-            continue;
-          }
-
-          if (rect.left > window.innerWidth * 0.25) {
-            fallbackRoots.set(current, area);
-          }
-        }
+      if (getViewportIntersectionArea(rect) > 0 && rect.width > 240 && rect.height > 240) {
+        return element;
       }
     }
 
-    return Array.from(fallbackRoots.entries())
-      .sort((left, right) => right[1] - left[1])
-      .map(([element]) => element)[0] || null;
+    return null;
   }
 
-  function getVisibleSidebarRoot() {
-    const candidates = Array.from(document.querySelectorAll(SIDEBAR_ROOT_SELECTOR)).filter((element) => {
-      if (!(element instanceof HTMLElement) || !canInteractWithElement(element)) {
-        return false;
-      }
-
-      const rect = element.getBoundingClientRect();
-      return rect.width >= 180 && rect.left < window.innerWidth * 0.45 && getViewportIntersectionArea(rect) > 0;
-    });
-
-    candidates.sort((left, right) => getViewportIntersectionArea(right.getBoundingClientRect()) - getViewportIntersectionArea(left.getBoundingClientRect()));
-    return candidates[0] || null;
+  function getChatScrollRoot() {
+    const element = document.querySelector(CHAT_SCROLL_ROOT_SELECTOR);
+    return element instanceof HTMLElement ? element : null;
   }
 
-  function getTopChromeRoot(mainRoot, sidebarRoot) {
-    const blockedRoots = new Set([mainRoot, sidebarRoot].filter((element) => element instanceof HTMLElement));
-    const candidates = Array.from(document.querySelectorAll(TOP_CHROME_ROOT_SELECTOR)).filter((element) => {
-      if (!(element instanceof HTMLElement) || blockedRoots.has(element) || !canInteractWithElement(element)) {
-        return false;
-      }
-
-      const rect = element.getBoundingClientRect();
-      return rect.height >= 36 && rect.top <= 24 && getViewportIntersectionArea(rect) > 0;
-    });
-
-    candidates.sort((left, right) => {
-      const leftRect = left.getBoundingClientRect();
-      const rightRect = right.getBoundingClientRect();
-      return (getViewportIntersectionArea(rightRect) - rightRect.top) - (getViewportIntersectionArea(leftRect) - leftRect.top);
-    });
-
-    return candidates[0] || null;
-  }
-
-  function getCachedInteractiveRoots(rootCache) {
+  function getCachedMainRoot(rootCache) {
     if (
       rootCache &&
       rootCache.width === window.innerWidth &&
@@ -545,14 +349,16 @@
     }
 
     const mainRoot = getMainInteractiveRoot();
-    const sidebarRoot = getVisibleSidebarRoot();
-    const topChromeRoot = getTopChromeRoot(mainRoot, sidebarRoot);
+    const sidebarRoot = document.querySelector(CHAT_SIDEBAR_ROOT_SELECTOR);
+    const headerActionsRoot = document.querySelector(CHAT_HEADER_ROOT_SELECTOR);
+    const tinyBarRoot = document.querySelector(CHAT_TINY_BAR_SELECTOR);
     return {
       width: window.innerWidth,
       height: window.innerHeight,
       mainRoot,
-      sidebarRoot,
-      topChromeRoot
+      sidebarRoot: sidebarRoot instanceof HTMLElement ? sidebarRoot : null,
+      headerActionsRoot: headerActionsRoot instanceof HTMLElement ? headerActionsRoot : null,
+      tinyBarRoot: tinyBarRoot instanceof HTMLElement ? tinyBarRoot : null
     };
   }
 
@@ -566,99 +372,76 @@
       : Array.from(root.querySelectorAll(selector));
   }
 
-  function getVisibleHintMetricsWithCaches(element, metricsCache, visibilityCache) {
-    if (!(element instanceof HTMLElement)) {
+  function pickHintTargetElement(element, mainRoot) {
+    if (!(element instanceof HTMLElement) || !(mainRoot instanceof HTMLElement)) {
       return null;
     }
 
-    if (metricsCache.has(element)) {
-      return metricsCache.get(element);
-    }
-
-    if (!canInteractWithElementCached(element, visibilityCache)) {
-      metricsCache.set(element, null);
+    const metrics = getVisibleHintMetrics(element);
+    if (!metrics) {
       return null;
     }
 
-    const rect = element.getBoundingClientRect();
-    if (rect.width <= MIN_VISIBLE_HINT_SIZE || rect.height <= MIN_VISIBLE_HINT_SIZE) {
-      metricsCache.set(element, null);
+    const resolvedElement = resolveVisibleInteractiveElement(metrics.rect);
+    if (!(resolvedElement instanceof HTMLElement) || !mainRoot.contains(resolvedElement) || !areRelatedInteractiveElements(element, resolvedElement)) {
       return null;
     }
 
-    const intersectionArea = getViewportIntersectionArea(rect);
-    const metrics = intersectionArea > 0 ? { rect, intersectionArea } : null;
-    metricsCache.set(element, metrics);
-    return metrics;
+    const resolvedMetrics = getVisibleHintMetrics(resolvedElement);
+    if (!resolvedMetrics) {
+      return null;
+    }
+
+    return {
+      element: resolvedElement,
+      rect: resolvedMetrics.rect,
+      intersectionArea: resolvedMetrics.intersectionArea,
+      depth: getNodeDepth(resolvedElement)
+    };
   }
 
-  function getHintCandidates(rootCache) {
+  function collectHintCandidatesFromRoot(root, selector, seen) {
+    if (!(root instanceof HTMLElement)) {
+      return [];
+    }
+
     const scoredCandidates = [];
-    const seen = new Set();
-    const visibilityCache = new Map();
-    const metricsCache = new Map();
-    const interactiveRoots = getCachedInteractiveRoots(rootCache);
-    const { mainRoot, sidebarRoot, topChromeRoot } = interactiveRoots;
-    const topChromeQueryCandidates = collectInteractiveElements(topChromeRoot, INTERACTIVE_SELECTOR);
-    const topChromePriorityCount = topChromeQueryCandidates.reduce((count, element) => {
-      const metrics = getVisibleHintMetricsWithCaches(element, metricsCache, visibilityCache);
-      return metrics && isTopChromeHintTarget(element, metrics.rect) ? count + 1 : count;
-    }, 0);
-    const candidates = [
-      ...collectInteractiveElements(mainRoot, INTERACTIVE_SELECTOR),
-      ...collectInteractiveElements(sidebarRoot, INTERACTIVE_SELECTOR),
-      ...topChromeQueryCandidates,
-      ...(topChromePriorityCount >= 4 ? [] : collectTopChromeCandidates(topChromeRoot))
-    ];
+    const candidates = collectInteractiveElements(root, selector);
 
     for (const element of candidates) {
-      if (!(element instanceof HTMLElement)) {
+      if (!(element instanceof HTMLElement) || seen.has(element) || isHintOverlayElement(element)) {
         continue;
       }
 
-      if (isHintOverlayElement(element)) {
+      const candidate = pickHintTargetElement(element, root);
+      if (!candidate || seen.has(candidate.element)) {
         continue;
       }
 
-      const metrics = getVisibleHintMetricsWithCaches(element, metricsCache, visibilityCache);
-      if (!metrics) {
-        continue;
-      }
-
-      const resolvedElement = resolveVisibleInteractiveElement(metrics.rect);
-      if (!(resolvedElement instanceof HTMLElement) || seen.has(resolvedElement)) {
-        continue;
-      }
-
-      const resolvedMetrics = getVisibleHintMetricsWithCaches(resolvedElement, metricsCache, visibilityCache);
-      if (!resolvedMetrics) {
-        continue;
-      }
-
-      if (isSidebarSecondaryControl(resolvedElement, resolvedMetrics.rect, metricsCache, visibilityCache)) {
-        continue;
-      }
-
-      seen.add(resolvedElement);
+      seen.add(candidate.element);
       scoredCandidates.push({
-        element: resolvedElement,
-        rect: resolvedMetrics.rect,
-        intersectionArea: resolvedMetrics.intersectionArea,
-        depth: getNodeDepth(resolvedElement),
-        sidebar: isSidebarHintTarget(resolvedElement),
-        topChrome: isTopChromeHintTarget(resolvedElement, resolvedMetrics.rect)
+        ...candidate,
+        root
       });
     }
 
+    return scoredCandidates;
+  }
+
+  function getHintCandidates(rootCache) {
+    if (!rootCache || !(rootCache.mainRoot instanceof HTMLElement)) {
+      return [];
+    }
+
+    const seen = new Set();
+    const scoredCandidates = [
+      ...collectHintCandidatesFromRoot(rootCache.mainRoot, INTERACTIVE_SELECTOR, seen),
+      ...collectHintCandidatesFromRoot(rootCache.headerActionsRoot, INTERACTIVE_SELECTOR, seen),
+      ...collectHintCandidatesFromRoot(rootCache.sidebarRoot, SIDEBAR_HINT_SELECTOR, seen),
+      ...collectHintCandidatesFromRoot(rootCache.tinyBarRoot, "button[aria-controls='stage-slideover-sidebar']", seen)
+    ];
+
     scoredCandidates.sort((left, right) => {
-      if (left.topChrome !== right.topChrome) {
-        return left.topChrome ? -1 : 1;
-      }
-
-      if (left.sidebar !== right.sidebar) {
-        return left.sidebar ? 1 : -1;
-      }
-
       if (left.rect.top !== right.rect.top) {
         return left.rect.top - right.rect.top;
       }
@@ -755,6 +538,8 @@
       const EventCtor = eventName.startsWith("pointer") && typeof PointerEvent === "function" ? PointerEvent : MouseEvent;
       element.dispatchEvent(new EventCtor(eventName, eventInit));
     }
+
+    element.dispatchEvent(new MouseEvent("click", eventInit));
   }
 
   function activateElement(element, hint, alternate) {
@@ -799,6 +584,14 @@
     return null;
   }
 
+  function areRelatedInteractiveElements(left, right) {
+    if (!(left instanceof HTMLElement) || !(right instanceof HTMLElement)) {
+      return false;
+    }
+
+    return left === right || left.contains(right) || right.contains(left);
+  }
+
   class VimiumNavigationController {
     constructor() {
       this.enabled = false;
@@ -808,9 +601,21 @@
       this.overlay = null;
       this.hints = [];
       this.hintCandidateCache = null;
-      this.interactiveRootCache = null;
+      this.mainRootCache = null;
+      this.hintRefreshFrame = null;
+      this.hintMutationObserver = null;
+      this.hintLayoutDirty = false;
       this.pendingSequence = "";
       this.pendingSequenceTimer = null;
+      this.boundViewportChange = (event) => {
+        const chatScrollRoot = getChatScrollRoot();
+        const target = event && event.target;
+        if (event && event.type === "scroll" && chatScrollRoot instanceof HTMLElement && target instanceof Node && target !== chatScrollRoot && !chatScrollRoot.contains(target)) {
+          return;
+        }
+
+        this.clearHintCandidateCache();
+      };
       this.boundKeydown = (event) => this.handleKeydown(event);
       this.boundPageCleanup = () => {
         this.clearHintCandidateCache();
@@ -843,6 +648,9 @@
 
       this.enabled = true;
       window.addEventListener("keydown", this.boundKeydown, true);
+      window.addEventListener("scroll", this.boundViewportChange, true);
+      window.addEventListener("resize", this.boundViewportChange, true);
+      document.addEventListener("mousedown", this.boundViewportChange, true);
       window.addEventListener("pagehide", this.boundPageCleanup);
       window.addEventListener("blur", this.boundVisibilityCleanup);
       document.addEventListener("visibilitychange", this.boundVisibilityCleanup);
@@ -858,6 +666,9 @@
 
       this.enabled = false;
       window.removeEventListener("keydown", this.boundKeydown, true);
+      window.removeEventListener("scroll", this.boundViewportChange, true);
+      window.removeEventListener("resize", this.boundViewportChange, true);
+      document.removeEventListener("mousedown", this.boundViewportChange, true);
       window.removeEventListener("pagehide", this.boundPageCleanup);
       window.removeEventListener("blur", this.boundVisibilityCleanup);
       document.removeEventListener("visibilitychange", this.boundVisibilityCleanup);
@@ -873,12 +684,33 @@
       window.addEventListener("resize", this.boundHintModeCleanup);
       window.addEventListener("scroll", this.boundHintModeCleanup, true);
       document.addEventListener("mousedown", this.boundHintModeCleanup, true);
+
+      const observedRoot = this.hintMode && this.hintMode.mainRoot;
+      if (typeof MutationObserver === "function" && observedRoot instanceof HTMLElement) {
+        this.hintMutationObserver = new MutationObserver(() => {
+          this.markHintLayoutDirty();
+        });
+        this.hintMutationObserver.observe(observedRoot, {
+          childList: true,
+          subtree: true
+        });
+      }
     }
 
     detachHintModeListeners() {
       window.removeEventListener("resize", this.boundHintModeCleanup);
       window.removeEventListener("scroll", this.boundHintModeCleanup, true);
       document.removeEventListener("mousedown", this.boundHintModeCleanup, true);
+
+      if (this.hintMutationObserver) {
+        this.hintMutationObserver.disconnect();
+        this.hintMutationObserver = null;
+      }
+
+      if (this.hintRefreshFrame) {
+        window.cancelAnimationFrame(this.hintRefreshFrame);
+        this.hintRefreshFrame = null;
+      }
     }
 
     patchHistory() {
@@ -1076,7 +908,16 @@
 
     clearHintCandidateCache() {
       this.hintCandidateCache = null;
-      this.interactiveRootCache = null;
+      this.mainRootCache = null;
+    }
+
+    markHintLayoutDirty() {
+      if (!this.hintMode) {
+        return;
+      }
+
+      this.hintLayoutDirty = true;
+      this.scheduleHintRefresh();
     }
 
     getCachedHintCandidates() {
@@ -1090,14 +931,50 @@
         return cache.candidates;
       }
 
-      this.interactiveRootCache = getCachedInteractiveRoots(this.interactiveRootCache);
-      const candidates = getHintCandidates(this.interactiveRootCache);
+      this.mainRootCache = getCachedMainRoot(this.mainRootCache);
+      const candidates = getHintCandidates(this.mainRootCache);
       this.hintCandidateCache = {
         width: window.innerWidth,
         height: window.innerHeight,
         candidates
       };
       return candidates;
+    }
+
+    scheduleHintRefresh() {
+      if (!this.hintMode || this.hintRefreshFrame) {
+        return;
+      }
+
+      this.hintRefreshFrame = window.requestAnimationFrame(() => {
+        this.hintRefreshFrame = null;
+
+        if (!this.hintMode) {
+          return;
+        }
+
+        this.updateHintLayout();
+        this.renderHints();
+      });
+    }
+
+    updateHintLayout() {
+      if (!this.hintMode || !this.hintLayoutDirty) {
+        return;
+      }
+
+      const mainRoot = this.hintMode.mainRoot;
+      if (!(mainRoot instanceof HTMLElement)) {
+        this.exitHintMode();
+        return;
+      }
+
+      for (const hint of this.hints) {
+        const candidate = pickHintTargetElement(hint.element, hint.root instanceof HTMLElement ? hint.root : mainRoot);
+        hint.rect = candidate ? candidate.rect : null;
+      }
+
+      this.hintLayoutDirty = false;
     }
 
     exitEditableContext(event) {
@@ -1195,6 +1072,12 @@
         return;
       }
 
+      const promptTextarea = document.getElementById("prompt-textarea");
+      if (promptTextarea instanceof HTMLElement && isVisible(promptTextarea) && typeof promptTextarea.focus === "function") {
+        promptTextarea.focus({ preventScroll: false });
+        return;
+      }
+
       const candidates = Array.from(document.querySelectorAll(EDITABLE_SELECTOR)).filter((element) => isVisible(element));
       const target = candidates.sort((left, right) => {
         const leftRect = getHintRect(left) || left.getBoundingClientRect();
@@ -1231,8 +1114,13 @@
       }
 
       this.exitHintMode();
+      this.hintMode = {
+        alternate,
+        input: "",
+        mainRoot: this.mainRootCache && this.mainRootCache.mainRoot instanceof HTMLElement ? this.mainRootCache.mainRoot : null
+      };
+      this.hintLayoutDirty = false;
       this.attachHintModeListeners();
-      this.hintMode = { alternate, input: "" };
       this.overlay = document.createElement("div");
       this.overlay.setAttribute("data-chatgpt-desktop-hints", "true");
       Object.assign(this.overlay.style, {
@@ -1248,6 +1136,7 @@
       this.hints = candidates.map((candidate, index) => ({
         code: codes[index],
         element: candidate.element,
+        root: candidate.root,
         rect: candidate.rect,
         marker: document.createElement("div")
       }));
@@ -1272,6 +1161,8 @@
         this.overlay.appendChild(hint.marker);
       }
 
+      this.hintLayoutDirty = true;
+      this.updateHintLayout();
       this.renderHints();
     }
 
@@ -1281,6 +1172,7 @@
       }
 
       const prefix = this.hintMode.input;
+      const occupiedPositions = [];
       let hasVisibleMatch = false;
 
       for (const hint of this.hints) {
@@ -1294,19 +1186,34 @@
 
         hasVisibleMatch = true;
         hint.marker.style.display = "block";
-        hint.marker.style.left = `${clamp(rect.left + 4, 4, window.innerWidth - 80)}px`;
-        hint.marker.style.top = `${clamp(rect.top + 4, 4, window.innerHeight - 24)}px`;
+        const markerWidth = 80;
+        const markerHeight = 24;
+        let left = clamp(rect.left + 4, 4, window.innerWidth - markerWidth);
+        let top = clamp(rect.top + 4, 4, window.innerHeight - markerHeight);
+
+        for (const position of occupiedPositions) {
+          const overlapsHorizontally = Math.abs(position.left - left) < markerWidth - 12;
+          const overlapsVertically = Math.abs(position.top - top) < markerHeight - 4;
+          if (overlapsHorizontally && overlapsVertically) {
+            top = clamp(position.top + markerHeight, 4, window.innerHeight - markerHeight);
+          }
+        }
+
+        occupiedPositions.push({ left, top });
+        hint.marker.style.left = `${left}px`;
+        hint.marker.style.top = `${top}px`;
         hint.marker.style.opacity = hint.code === prefix ? "1" : "0.96";
         hint.marker.style.background = hint.code === prefix ? "#ffbf47" : "#ffe38a";
         hint.marker.textContent = prefix ? `${prefix}${hint.code.slice(prefix.length)}` : hint.code;
       }
-
       if (!hasVisibleMatch) {
         this.exitHintMode();
       }
     }
 
     activateHint(hint) {
+      this.hintLayoutDirty = true;
+      this.updateHintLayout();
       const element = resolveActivatableElement(hint);
       const alternate = this.hintMode && this.hintMode.alternate;
       this.exitHintMode();
@@ -1322,6 +1229,7 @@
       this.clearPendingSequence();
       this.detachHintModeListeners();
       this.hintMode = null;
+      this.hintLayoutDirty = false;
       this.hints = [];
 
       if (this.overlay && this.overlay.isConnected) {
