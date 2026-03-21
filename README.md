@@ -1,12 +1,22 @@
 # ChatGPT Desktop for Linux (Unofficial)
 
-A lightweight Electron desktop wrapper that opens ChatGPT in a standalone window with system tray support and optional customizations.
+A Linux desktop app for ChatGPT built to make the web app feel faster, cleaner, and far more usable as a real daily tool.
 
-This is a small, minimal wrapper built to stay understandable and easy to audit. It was created to fill the gap for a simple ChatGPT desktop wrapper on Linux, and it is intended to be actively maintained and improved. If you do not trust prebuilt binaries, inspect the code and build it yourself.
+What started as a simple Electron wrapper has evolved into a focused desktop shell for ChatGPT: better windowing behavior, tray integration, persistent settings, keyboard-driven navigation, zoom controls, and power-user customization that smooth out rough edges in the browser experience.
+
+The project stays intentionally transparent, Linux-focused, and easy to inspect. If you do not trust prebuilt binaries, review the code and build it yourself.
 
 Supported platforms: Linux (`.AppImage`), Debian stable and Ubuntu (`.deb`).
 
 For the best cross-distro compatibility, use the `.AppImage`, which should run on most modern Linux distributions. The `.deb` package is distro-specific and intended for Debian stable and Ubuntu systems on `amd64`.
+
+## Why Use It
+
+- Runs ChatGPT in a dedicated desktop window with tray support and practical app-style behavior
+- Improves day-to-day usability with performance tweaks, persistent zoom, saved settings, and a configurable global shortcut
+- Adds built-in Vimium-style keyboard navigation for faster movement through the ChatGPT UI
+- Supports custom CSS and custom scripts for users who want to tailor the experience further
+- Ships as Linux-friendly `.AppImage` and `.deb` packages (flatpak support is planned)
 
 ## Developer
 
@@ -44,7 +54,7 @@ The app looks specifically for the filename `custom.css`.
 
 An example stylesheet is available at `resources/examples/styles/custom.css`.
 
-## Custom Scripts
+## Power-User Scripts
 
 To run custom JavaScript in the ChatGPT window, place `.js` files here:
 
@@ -178,4 +188,4 @@ Bug reports and practical feature requests are welcome through GitHub Issues.
 
 Before opening a new issue, please check whether it already exists and include enough detail to reproduce the problem.
 
-This project is small and Linux-focused, so support and feature work will stay scoped accordingly.
+This project is Linux-focused, and support and feature work will stay practical and aligned with that scope.
