@@ -1,8 +1,9 @@
 /*
  * ChatGPT Desktop Wrapper
- * Developer: Stephan Coertzen <coertzen.jfs@gmail.com>
+ * Developer: alter.daemon <alter.daemon.ivytq@passmail.com>
  * License: MIT
  */
-window.addEventListener('DOMContentLoaded', () => {
-  // Intentionally left minimal. Preload exists for future hardening/extensions.
+
+window.addEventListener("DOMContentLoaded", () => {
+  // Intentionally minimal. Page-side features are injected from bundled modules.
 });

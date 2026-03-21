@@ -12,8 +12,8 @@ For the best cross-distro compatibility, use the `.AppImage`, which should run o
 
 - alter.daemon `<alter.daemon.ivytq@passmail.com>`
 
-### Credits
-- Stephan Coertzen (initial version 1.0.0)
+### Origins
+- Inspired by the original 1.0.0 wrapper by Stephan Coertzen
 
 ## Prerequisites (Debian stable / Ubuntu)
 
@@ -77,6 +77,7 @@ Current settings include:
 - `spellCheckEnabled`
 - `showShortcut`
 - `zoomFactor`
+- `vimiumNavigationEnabled`
 
 ## App Menu and Tray Menu
 
@@ -87,6 +88,7 @@ The application menu and tray menu include:
 - `Refresh`
 - `Zoom` submenu with `Actual`, `Zoom In`, `Zoom Out`, and `Full Screen`
 - `Spellcheck`
+- `Vimium-Style Navigation`
 - `Save Settings`
 - `About`
 - `Help`
@@ -118,6 +120,23 @@ Behavior:
 
 The shortcut value uses Electron accelerator syntax.
 
+## Built-in Keyboard Navigation
+
+The app includes Vimium-style navigation keys when focus is not inside an input, textarea, select, or contenteditable editor.
+
+- `j` / `k`: scroll down or up by a small step
+- `h` / `l`: scroll left or right by a small step
+- `d` / `u`: scroll down or up by about half a page
+- `gg` / `G`: jump to the top or bottom of the current scrollable view
+- `gi`: focus the main visible input/editor
+- `f`: show link hints for visible clickable elements across the current ChatGPT UI and follow the selected target in place
+- `F`: show link hints across the current ChatGPT UI and try to open anchor targets with alternate follow behavior (`window.open`) when available
+- `Esc`: cancel hint mode or leave the active input/editor
+
+These bindings are ignored while you are typing in the ChatGPT prompt or another editable control, so normal text entry is preserved.
+
+You can disable or re-enable this feature from the application menu, the tray menu, or by editing `vimiumNavigationEnabled` in `~/.config/chatgpt-desktop/settings.json`.
+
 ## Zoom
 
 The app supports manual zoom controls from the app menu and tray menu.
@@ -136,7 +155,7 @@ Build outputs are generated in `dist/`:
 
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.3.1`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.4.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 The workflow runs on GitHub-hosted Ubuntu and produces:
 
@@ -145,10 +164,10 @@ The workflow runs on GitHub-hosted Ubuntu and produces:
 
 ```bash
 git add .
-git commit -m "feat: release chatgpt-desktop v1.3.1 with menu controls and persistent zoom setting"
-git tag v1.3.1
+git commit -m "feat: release chatgpt-desktop v1.4.0 with built-in keyboard navigation and main-pane link hints"
+git tag v1.4.0
 git push origin main
-git push origin v1.3.1
+git push origin v1.4.0
 ```
 
 The tag push is what triggers the release workflow.

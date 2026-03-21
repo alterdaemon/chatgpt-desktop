@@ -1,11 +1,12 @@
 /*
  * ChatGPT Desktop Wrapper
- * Developer: Stephan Coertzen <coertzen.jfs@gmail.com>
+ * Developer: alter.daemon <alter.daemon.ivytq@passmail.com>
  * License: MIT
  */
 
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const {
   app,
   BrowserWindow,
@@ -25,9 +26,12 @@ let mainWindow = null;
 let tray = null;
 let spellCheckEnabled = false;
 let zoomFactor = 1;
+let vimiumNavigationEnabled = true;
 const DEFAULT_SHOW_SHORTCUT = "CommandOrControl+Shift+Space";
 let showShortcut = DEFAULT_SHOW_SHORTCUT;
 const REPO_URL = "https://github.com/alterdaemon/chatgpt-desktop";
+let cachedVimiumNavigationModule = "";
+const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["https:", "http:"]);
 
 app.commandLine.appendSwitch("disable-smooth-scrolling");
 app.commandLine.appendSwitch("disable-gpu-vsync");
@@ -55,6 +59,7 @@ const scriptsPath = path.join(appConfigPath, "scripts");
 const settingsPath = path.join(appConfigPath, "settings.json");
 const cachePath = path.join(cacheRoot, "chatgpt-desktop");
 const crashDumpsPath = path.join(cachePath, "crashpad");
+const vimiumNavigationModulePath = path.join(__dirname, "page-modules", "vimium-navigation.js");
 
 app.setPath("userData", appDataPath);
 app.setPath("crashDumps", crashDumpsPath);
@@ -106,12 +111,24 @@ function loadScriptsOnce() {
       .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b))
-      .map((fileName) => ({
-        fileName,
-        script: fs.readFileSync(path.join(scriptsPath, fileName), "utf8"),
-      }));
+      .map((fileName) => {
+        const script = fs.readFileSync(path.join(scriptsPath, fileName), "utf8");
+        return {
+          fileName,
+          script,
+          signature: crypto.createHash("sha256").update(script, "utf8").digest("hex"),
+        };
+      });
   } catch {
     cachedScripts = [];
+  }
+}
+
+function loadVimiumNavigationModuleOnce() {
+  try {
+    cachedVimiumNavigationModule = fs.readFileSync(vimiumNavigationModulePath, "utf8");
+  } catch {
+    cachedVimiumNavigationModule = "";
   }
 }
 
@@ -131,6 +148,10 @@ function loadSettings() {
     if (typeof settings.zoomFactor === "number" && Number.isFinite(settings.zoomFactor)) {
       zoomFactor = Math.min(3, Math.max(0.5, settings.zoomFactor));
     }
+
+    if (typeof settings.vimiumNavigationEnabled === "boolean") {
+      vimiumNavigationEnabled = settings.vimiumNavigationEnabled;
+    }
   } catch {}
 }
 
@@ -143,6 +164,7 @@ function saveSettings() {
           spellCheckEnabled,
           showShortcut,
           zoomFactor,
+          vimiumNavigationEnabled,
         },
         null,
         2
@@ -329,6 +351,15 @@ function openHelp() {
   shell.openExternal(REPO_URL);
 }
 
+function isAllowedExternalUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return ALLOWED_EXTERNAL_PROTOCOLS.has(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
 function getZoomSubmenu() {
   return [
     {
@@ -359,7 +390,7 @@ function getTrayIcon() {
 
 function applySpellCheckEnabled(window = mainWindow) {
   if (!window || window.isDestroyed()) {
-    return;
+    return Promise.resolve();
   }
 
   const { session } = window.webContents;
@@ -368,7 +399,7 @@ function applySpellCheckEnabled(window = mainWindow) {
     session.setSpellCheckerEnabled(spellCheckEnabled);
   }
 
-  window.webContents
+  return window.webContents
     .executeJavaScript(
       `(() => {
         const enabled = ${spellCheckEnabled ? "true" : "false"};
@@ -393,13 +424,65 @@ function applySpellCheckEnabled(window = mainWindow) {
 function updateSpellCheck(enabled) {
   spellCheckEnabled = enabled;
   saveSettings();
-  applySpellCheckEnabled();
+  applySpellCheckEnabled().catch(() => {});
+  createAppMenu();
+  updateTrayMenu();
+}
+
+function ensureVimiumNavigationModule(window = mainWindow) {
+  if (!window || window.isDestroyed() || !cachedVimiumNavigationModule) {
+    return Promise.resolve(false);
+  }
+
+  return window.webContents.executeJavaScript(
+    "Boolean(window.__chatgptDesktopVimiumNavigation)",
+    true
+  ).then((installed) => {
+    if (installed) {
+      return true;
+    }
+
+    return window.webContents.executeJavaScript(cachedVimiumNavigationModule, true).then(() => true);
+  });
+}
+
+function applyVimiumNavigationEnabled(window = mainWindow) {
+  if (!window || window.isDestroyed() || !cachedVimiumNavigationModule) {
+    return Promise.resolve();
+  }
+
+  const enabledLiteral = vimiumNavigationEnabled ? "true" : "false";
+
+  return ensureVimiumNavigationModule(window).then((installed) => {
+    if (!installed) {
+      return undefined;
+    }
+
+    return window.webContents.executeJavaScript(
+      `(() => {
+        if (window.__chatgptDesktopVimiumNavigation) {
+          window.__chatgptDesktopVimiumNavigation.setEnabled(${enabledLiteral});
+        }
+      })();`,
+      true
+    );
+  });
+}
+
+function updateVimiumNavigation(enabled) {
+  vimiumNavigationEnabled = enabled;
+  saveSettings();
+  applyVimiumNavigationEnabled().catch(() => {});
   createAppMenu();
   updateTrayMenu();
 }
 
 function getTraySpellCheckLabel() {
   return spellCheckEnabled ? "Spellcheck ✓" : "Spellcheck";
+}
+
+function getTrayVimiumNavigationLabel() {
+  return vimiumNavigationEnabled ? "Vimium-Style Navigation ✓" : "Vimium-Style Navigation";
 }
 
 function createAppMenu() {
@@ -428,6 +511,12 @@ function createAppMenu() {
           type: "checkbox",
           checked: spellCheckEnabled,
           click: (menuItem) => updateSpellCheck(menuItem.checked),
+        },
+        {
+          label: "Vimium-Style Navigation",
+          type: "checkbox",
+          checked: vimiumNavigationEnabled,
+          click: (menuItem) => updateVimiumNavigation(menuItem.checked),
         },
         {
           label: "Save Settings",
@@ -476,6 +565,10 @@ function buildTrayMenu() {
       click: () => updateSpellCheck(!spellCheckEnabled),
     },
     {
+      label: getTrayVimiumNavigationLabel(),
+      click: () => updateVimiumNavigation(!vimiumNavigationEnabled),
+    },
+    {
       label: "Save Settings",
       click: () => saveCurrentSettings(),
     },
@@ -518,6 +611,14 @@ function createTray() {
   tray.on("click", () => {
     revealMainWindow();
   });
+}
+
+async function runCustomizationStep(label, action) {
+  try {
+    await action();
+  } catch (error) {
+    console.error(`Failed to apply ${label}:`, error);
+  }
 }
 
 function createWindow() {
@@ -564,7 +665,9 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) {
+      shell.openExternal(url).catch(() => {});
+    }
     return { action: "deny" };
   });
 
@@ -573,10 +676,49 @@ function createWindow() {
       return;
     }
 
-    for (const { fileName, script } of cachedScripts) {
+    for (const { fileName, script, signature } of cachedScripts) {
       try {
+        const shouldRun = await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            const registry = window.__chatgptDesktopUserScriptRegistry || (window.__chatgptDesktopUserScriptRegistry = Object.create(null));
+            const routeKey = location.href;
+            const fileKey = ${JSON.stringify(fileName)};
+            const scriptSignature = ${JSON.stringify(signature)};
+            const previousRun = registry[fileKey];
+
+            if (previousRun && previousRun.routeKey === routeKey && previousRun.scriptSignature === scriptSignature) {
+              return false;
+            }
+
+            return { fileKey, routeKey, scriptSignature };
+          })();
+        `);
+
+        if (!shouldRun) {
+          continue;
+        }
+
         await mainWindow.webContents.executeJavaScript(script);
+        await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            const registry = window.__chatgptDesktopUserScriptRegistry || (window.__chatgptDesktopUserScriptRegistry = Object.create(null));
+            registry[${JSON.stringify(fileName)}] = {
+              routeKey: ${JSON.stringify(shouldRun.routeKey)},
+              scriptSignature: ${JSON.stringify(shouldRun.scriptSignature)}
+            };
+          })();
+        `);
       } catch (error) {
+        try {
+          await mainWindow.webContents.executeJavaScript(`
+            (() => {
+              const registry = window.__chatgptDesktopUserScriptRegistry;
+              if (registry) {
+                delete registry[${JSON.stringify(fileName)}];
+              }
+            })();
+          `);
+        } catch {}
         console.error(`Failed to execute script ${fileName}:`, error);
       }
     }
@@ -584,14 +726,13 @@ function createWindow() {
 
   const applyCustomizations = async () => {
     applyZoomFactor(zoomFactor);
-    applySpellCheckEnabled(mainWindow);
+    await runCustomizationStep("spellcheck", () => applySpellCheckEnabled(mainWindow));
+    await runCustomizationStep("Vimium navigation", () => applyVimiumNavigationEnabled(mainWindow));
 
     if (cachedCss) {
-      try {
-        await mainWindow.webContents.insertCSS(cachedCss);
-      } catch {}
+      await runCustomizationStep("custom CSS", () => mainWindow.webContents.insertCSS(cachedCss));
     }
-    await injectScripts();
+    await runCustomizationStep("custom scripts", () => injectScripts());
 
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
       mainWindow.show();
@@ -608,7 +749,8 @@ function createWindow() {
 
   mainWindow.webContents.on("did-navigate-in-page", () => {
     applyZoomFactor(zoomFactor);
-    injectScripts().catch(() => {});
+    runCustomizationStep("Vimium navigation", () => applyVimiumNavigationEnabled(mainWindow));
+    runCustomizationStep("custom scripts", () => injectScripts());
   });
 
   mainWindow.loadURL("https://chatgpt.com");
@@ -620,6 +762,7 @@ app.whenReady().then(() => {
   saveSettings();
   loadCssOnce();
   loadScriptsOnce();
+  loadVimiumNavigationModuleOnce();
   createAppMenu();
   createWindow();
   createTray();

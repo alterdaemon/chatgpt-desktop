@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-03-21
+
+### Added
+- Built-in Vimium-style keyboard navigation for the ChatGPT view, including `h`, `j`, `k`, `l`, `u`, `d`, `gg`, `G`, and `gi`.
+- Link hint mode with `f` and `F` for keyboard-driven activation across the visible ChatGPT UI, including sidebar and chrome controls.
+
+### Changed
+- `Esc` now exits the active input/editor so navigation commands can resume immediately.
+- Improved built-in keyboard navigation behavior to target the active scrollable view and focus the main prompt only when explicitly requested.
+- Moved built-in Vimium-style navigation into a dedicated bundled page module and added a persisted on/off toggle in the app and tray menus.
+
 ## [1.3.1] - 2026-03-20
 
 ### Added
