@@ -1,0 +1,36 @@
+app-id: io.github.alterdaemon.chatgpt-desktop
+branch: stable
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "24.08"
+command: electron-wrapper
+separate-locales: false
+finish-args:
+  - --socket=wayland
+  - --socket=x11
+  - --share=ipc
+  - --device=dri
+  - --socket=pulseaudio
+  - --share=network
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.freedesktop.portal.OpenURI
+  - --talk-name=org.freedesktop.portal.GlobalShortcuts
+modules:
+  - name: chatgpt-desktop
+    build-options:
+      no-debuginfo: true
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 packaging/flatpak/release/electron-wrapper /app/bin/electron-wrapper
+      - mkdir -p /app/lib/io.github.alterdaemon.chatgpt-desktop
+      - cp -a dist/linux-unpacked/. /app/lib/io.github.alterdaemon.chatgpt-desktop/
+      - install -Dm644 packaging/flatpak/release/io.github.alterdaemon.chatgpt-desktop.desktop /app/share/applications/io.github.alterdaemon.chatgpt-desktop.desktop
+      - install -Dm644 packaging/flatpak/release/io.github.alterdaemon.chatgpt-desktop.metainfo.xml /app/share/metainfo/io.github.alterdaemon.chatgpt-desktop.metainfo.xml
+      - install -Dm644 build/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.alterdaemon.chatgpt-desktop.svg
+      - for size in 16 24 32 48 64 96 128 256 512; do install -Dm644 "build/icons/${size}x${size}.png" "/app/share/icons/hicolor/${size}x${size}/apps/io.github.alterdaemon.chatgpt-desktop.png"; done
+    sources:
+      - type: dir
+        path: ../../..
