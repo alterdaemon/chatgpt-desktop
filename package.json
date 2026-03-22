@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-desktop",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Minimal Electron wrapper for ChatGPT with optional customization, optimized for Linux",
   "homepage": "https://chatgpt.com",
   "main": "main.js",
@@ -13,15 +13,20 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
+    "build:linux:dir": "electron-builder --linux dir --publish never",
     "build:linux": "electron-builder --linux --publish never",
-    "release:linux": "npm run build:linux"
+    "setup:flatpak": "./packaging/flatpak/release/setup-flatpak.sh",
+    "build:flatpak": "./packaging/flatpak/release/build-flatpak.sh",
+    "validate:flatpak-assets": "./packaging/flatpak/release/validate-flatpak-assets.sh",
+    "release:linux": "npm run build:linux",
+    "release:flatpak": "npm run build:flatpak"
   },
   "devDependencies": {
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "com.alterdaemon.chatgpt-desktop",
+    "appId": "io.github.alterdaemon.chatgpt-desktop",
     "productName": "ChatGPT Desktop (Unofficial)",
     "npmRebuild": false,
     "files": [

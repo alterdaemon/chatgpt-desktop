@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.alterdaemon.chatgpt-desktop</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>ChatGPT Desktop (Unofficial)</name>
+  <summary>Minimal Electron desktop shell for ChatGPT</summary>
+  <developer id="com.alterdaemon">
+    <name>alter.daemon</name>
+  </developer>
+  <launchable type="desktop-id">io.github.alterdaemon.chatgpt-desktop.desktop</launchable>
+  <content_rating type="oars-1.1" />
+  <description>
+    <p>ChatGPT Desktop wraps the ChatGPT web app in a Linux-friendly Electron shell with saved settings, tray integration when available, keyboard-driven navigation, and user customization hooks.</p>
+    <p>The Flatpak build keeps configuration, data, and cache files inside the sandbox-managed XDG directories while using desktop portals for host integration where available.</p>
+  </description>
+  <url type="homepage">https://github.com/alterdaemon/chatgpt-desktop</url>
+  <url type="bugtracker">https://github.com/alterdaemon/chatgpt-desktop/issues</url>
+  <releases>
+    <release version="1.5.0" date="2026-03-22" />
+  </releases>
+  <screenshots>
+    <screenshot type="default">
+      <caption>ChatGPT Desktop main window</caption>
+      <image>https://raw.githubusercontent.com/alterdaemon/chatgpt-desktop/main/.github/assets/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+  <categories>
+    <category>Network</category>
+    <category>Utility</category>
+  </categories>
+</component>

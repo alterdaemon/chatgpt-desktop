@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-03-22
+
+### Added
+- Official Flatpak packaging assets, metadata, and build scripts under `packaging/flatpak/release/` for producing a sandboxed `.flatpak` bundle.
+
+### Changed
+- The release workflow now validates and publishes Flatpak artifacts alongside the existing `.AppImage` and `.deb` packages.
+- Tray startup and global show or hide shortcut registration now degrade cleanly when sandboxed desktops or portal integrations do not expose those capabilities.
+
 ## [1.4.1] - 2026-03-21
 
 ### Changed

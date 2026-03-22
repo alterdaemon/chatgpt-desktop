@@ -599,18 +599,39 @@ function updateTrayMenu() {
 }
 
 function createTray() {
-  if (tray) return;
+  if (tray) {
+    return true;
+  }
 
-  tray = new Tray(getTrayIcon());
+  try {
+    tray = new Tray(getTrayIcon());
+    tray.setToolTip("ChatGPT");
+    tray.setTitle("ChatGPT");
+    updateTrayMenu();
+    tray.on("click", () => {
+      revealMainWindow();
+    });
+    return true;
+  } catch (error) {
+    tray = null;
+    console.warn("Tray integration unavailable in this session:", error);
+    return false;
+  }
+}
 
-  tray.setToolTip("ChatGPT");
-  tray.setTitle("ChatGPT");
+function registerGlobalShortcut(accelerator, handler, label) {
+  try {
+    const registered = globalShortcut.register(accelerator, handler);
 
-  updateTrayMenu();
+    if (!registered) {
+      console.warn(`Global shortcut unavailable for ${label}: ${accelerator}`);
+    }
 
-  tray.on("click", () => {
-    revealMainWindow();
-  });
+    return registered;
+  } catch (error) {
+    console.warn(`Failed to register global shortcut for ${label}: ${accelerator}`, error);
+    return false;
+  }
 }
 
 async function runCustomizationStep(label, action) {
@@ -644,7 +665,7 @@ function createWindow() {
   applyZoomFactor(zoomFactor);
 
   mainWindow.on("close", (e) => {
-    if (!allowQuit) {
+    if (!allowQuit && tray) {
       e.preventDefault();
       mainWindow.hide();
     }
@@ -767,13 +788,13 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
-  globalShortcut.register("CommandOrControl+Q", () => {
+  registerGlobalShortcut("CommandOrControl+Q", () => {
     requestQuit();
-  });
+  }, "quit");
 
-  globalShortcut.register(showShortcut, () => {
+  registerGlobalShortcut(showShortcut, () => {
     toggleMainWindow();
-  });
+  }, "show or hide");
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -797,5 +818,7 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  // keep app alive for tray
+  if (!tray) {
+    app.quit();
+  }
 });

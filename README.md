@@ -6,7 +6,7 @@ What started as a simple Electron wrapper has evolved into a focused desktop she
 
 The project stays intentionally transparent, Linux-focused, and easy to inspect. If you do not trust prebuilt binaries, review the code and build it yourself.
 
-Supported platforms: Linux (`.AppImage`), Debian stable and Ubuntu (`.deb`).
+Supported platforms: Linux (`.AppImage`), Debian stable and Ubuntu (`.deb`), and Flatpak (`.flatpak`).
 
 For the best cross-distro compatibility, use the `.AppImage`, which should run on most modern Linux distributions. The `.deb` package is distro-specific and intended for Debian stable and Ubuntu systems on `amd64`.
 
@@ -16,7 +16,7 @@ For the best cross-distro compatibility, use the `.AppImage`, which should run o
 - Improves day-to-day usability with performance tweaks, persistent zoom, saved settings, and a configurable global shortcut
 - Adds built-in Vimium-style keyboard navigation for faster movement through the ChatGPT UI
 - Supports custom CSS and custom scripts for users who want to tailor the experience further
-- Ships as Linux-friendly `.AppImage` and `.deb` packages (flatpak support is planned)
+- Ships as Linux-friendly `.AppImage`, `.deb`, and `.flatpak` packages
 
 ## Developer
 
@@ -38,10 +38,38 @@ sudo apt install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libxss1 libasound2
 npm install
 ```
 
+## Flatpak runtime prerequisites
+
+To build or install the official Flatpak locally, make sure Flatpak, Flatpak Builder, desktop file validation, and AppStream validation tools are available:
+
+```bash
+sudo apt update
+sudo apt install -y flatpak flatpak-builder desktop-file-utils appstream
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install --user flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.electronjs.Electron2.BaseApp//24.08
+```
+
+After the system packages are installed, you can bootstrap the Flatpak remote and runtimes with:
+
+```bash
+npm run setup:flatpak
+```
+
+By default this installs runtimes for the current user. If you prefer a system-wide install, run `FLATPAK_INSTALL_SCOPE=system npm run setup:flatpak`.
+
 ## Run the app
 
 ```bash
 npm start
+```
+
+## Install the Flatpak release artifact
+
+Official tagged releases also attach a `.flatpak` bundle alongside the `.AppImage` and `.deb` files.
+
+```bash
+flatpak install --user ./dist/chatgpt-desktop_<version>_<arch>.flatpak
+flatpak run io.github.alterdaemon.chatgpt-desktop
 ```
 
 ## Custom CSS
@@ -81,6 +109,8 @@ Crash dump data is stored under:
 Application settings are stored under:
 
 `~/.config/chatgpt-desktop/settings.json`
+
+Inside the Flatpak sandbox, these same app-owned locations resolve under `~/.var/app/io.github.alterdaemon.chatgpt-desktop/` through the sandbox-managed XDG config, data, and cache directories.
 
 Current settings include:
 
@@ -130,6 +160,8 @@ Behavior:
 
 The shortcut value uses Electron accelerator syntax.
 
+On Flatpak desktops, global shortcut registration depends on desktop portal support. If the session does not expose the needed portal APIs, the app still launches normally and keeps the configured `showShortcut` value for later sessions.
+
 ## Built-in Keyboard Navigation
 
 The app includes Vimium-style navigation keys when focus is not inside an input, textarea, select, or contenteditable editor.
@@ -163,21 +195,55 @@ Build outputs are generated in `dist/`:
 - `.AppImage`
 - `.deb`
 
+## Build the Flatpak bundle
+
+```bash
+npm run build:flatpak
+```
+
+This command:
+
+- validates the Flatpak desktop metadata
+- reads release Flatpak packaging sources from `packaging/flatpak/release/`
+- reuses `dist/linux-unpacked/` when it already exists, otherwise builds the unpacked Electron app there
+- stores Flatpak builder cache and checksums in `dist/.flatpak-builder/`
+- writes temporary Flatpak build state into `dist/flatpak-build/`
+- packages the Flatpak repo into `dist/flatpak-repo/`
+- exports a `.flatpak` bundle into `dist/`
+
+If you only want to validate the Flatpak metadata and manifest before building, run:
+
+```bash
+npm run validate:flatpak-assets
+```
+
+Project Flatpak tracks:
+
+- `packaging/flatpak/release/` contains the GitHub-release-oriented Flatpak bundle flow.
+- `packaging/flatpak/flathub/` is reserved for the future Flathub-compliant source-build manifest.
+
+Flatpak-specific behavior notes:
+
+- Tray support is best-effort. If the desktop session or sandbox does not allow tray integration, closing the main window quits the app instead of hiding it in the background.
+- Global show/hide shortcuts can be unavailable when the desktop portal stack does not expose global shortcut registration.
+- App settings, custom CSS, and custom scripts stay inside the Flatpak sandbox's XDG-managed directories rather than using broad home-directory access.
+
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.4.1`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.5.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 The workflow runs on GitHub-hosted Ubuntu and produces:
 
 - `.AppImage` for most modern Linux distributions
 - `.deb` for Debian stable / Ubuntu `amd64`
+- `.flatpak` bundle for Flatpak-capable Linux desktops
 
 ```bash
 git add .
-git commit -m "fix: release chatgpt-desktop v1.4.1 with faster targeted UI hint navigation"
-git tag v1.4.1
+git commit -m "release: publish chatgpt-desktop v1.5.0 with Flatpak packaging support"
+git tag v1.5.0
 git push origin main
-git push origin v1.4.1
+git push origin v1.5.0
 ```
 
 The tag push is what triggers the release workflow.
