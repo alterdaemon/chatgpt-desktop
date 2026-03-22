@@ -1,5 +1,13 @@
 /* terminal typography */
-html, body, textarea, input, button, select, option, pre, code {
+html,
+body,
+textarea,
+input,
+button,
+select,
+option,
+pre,
+code {
     font-family: monospace !important;
     font-weight: 400 !important;
     font-size: 14px !important;
@@ -13,14 +21,6 @@ main article section,
 main [data-message-author-role],
 main [data-message-author-role] > div,
 main [data-message-author-role] > div > div,
-main pre,
-main pre *,
-main code,
-main code *,
-main [data-message-author-role] pre,
-main [data-message-author-role] pre *,
-main [data-message-author-role] code,
-main [data-message-author-role] code *,
 main table,
 main th,
 main td,
@@ -40,18 +40,6 @@ nav [role="button"],
 header button,
 header a,
 header [role="button"],
-form.group\/composer,
-form.group\/composer > div,
-form.group\/composer button,
-form.group\/composer textarea,
-form.group\/composer [role="group"],
-form[data-type="unified-composer"],
-form[data-type="unified-composer"] > div,
-form[data-type="unified-composer"] button,
-form[data-type="unified-composer"] textarea,
-form[data-type="unified-composer"] [role="group"],
-#prompt-textarea,
-#prompt-textarea > div,
 [role="dialog"],
 [role="dialog"] > div,
 [role="dialog"] button,
@@ -72,6 +60,17 @@ form[data-type="unified-composer"] [role="group"],
 [data-radix-popper-content-wrapper] [role="menuitem"],
 [data-radix-popper-content-wrapper] [role="listbox"],
 [data-radix-popper-content-wrapper] [role="option"] {
+    border-radius: 0 !important;
+}
+
+/* code blocks: force square wrappers (remove rounded shells) */
+main pre,
+main pre > div,
+main pre > div > div,
+main pre .rounded-3xl,
+main pre .border-radius-3xl,
+main pre [class*="corner-superellipse"],
+main #code-block-viewer {
     border-radius: 0 !important;
 }
 
@@ -123,37 +122,38 @@ main [data-message-author-role] {
 /* hide disclaimer row */
 div.-mt-4.text-token-text-secondary.relative.w-full.overflow-hidden.text-center.text-xs {
     display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    max-height: 0 !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    overflow: hidden !important;
 }
 
 /* input cleanup */
-form.group\/composer textarea,
-#prompt-textarea {
+:where(form.group\/composer, form[data-type="unified-composer"]) textarea {
     box-shadow: none !important;
     filter: none !important;
     outline: none !important;
     resize: none !important;
-    min-height: 36px !important;
     max-height: 220px !important;
-    line-height: 1.35 !important;
-    padding: 6px 8px !important;
+}
+
+/* performance mode: disable autogrow reflow and motion in composer input */
+#prompt-textarea,
+#prompt-textarea.ProseMirror,
+:where(form.group\/composer, form[data-type="unified-composer"]) textarea {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    height: auto !important;
+    min-height: 44px !important;
+    max-height: 220px !important;
+    overflow-y: auto !important;
 }
 
 /* avoid smooth scroll jank during streamed output */
-html, body {
+html,
+body {
     scroll-behavior: auto !important;
 }
 
 /* external/source links: keep natural width */
-main a[href^="http"],
-main a[href^="https"],
-main a[rel~="noopener"] {
+main a[href^="http"] {
     width: auto !important;
     min-width: 0 !important;
     max-width: fit-content !important;
@@ -166,59 +166,188 @@ main a img {
     max-height: 16px;
 }
 
-
 /* input box */
 
-form.group\/composer,
-form[data-type="unified-composer"] {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding-top: 8px !important;
+/* Base structure: borderless, flat, no blur */
+:where(form.group\/composer, form[data-type="unified-composer"]) {
+    border: 0 !important;
+    box-shadow: none !important;
+    padding-top: 8px !important;
 }
-form.group\/composer > div,
-form[data-type="unified-composer"] > div {
-  background: rgba(20, 20, 20, 0.85) !important;
-  border: 1px solid rgba(128, 128, 128, 0.35) !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  padding: 10px !important;
+:where(form.group\/composer, form[data-type="unified-composer"]) > div {
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    clip-path: none !important;
 }
-/* Keep only near-inner wrappers transparent */
-form.group\/composer > div > div,
-form[data-type="unified-composer"] > div > div,
+:where(form.group\/composer, form[data-type="unified-composer"]) > div > div,
+:where(form.group\/composer, form[data-type="unified-composer"]) [role="group"],
 #prompt-textarea,
 #prompt-textarea > div {
-  background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
-/* Editable input itself */
 #prompt-textarea,
 #prompt-textarea.ProseMirror {
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  outline: none !important;
-  color: #fff !important;
-  font-size: 15px !important;
-  line-height: 1.4 !important;
-  padding: 0 !important;
-  min-height: 30px !important;
+    outline: none !important;
 }
-#prompt-textarea p.is-empty::before,
-#prompt-textarea [data-placeholder]::before {
-  color: rgba(255, 255, 255, 0.55) !important;
+:where(form.group\/composer, form[data-type="unified-composer"]) button {
+    box-shadow: none !important;
 }
-form.group\/composer [role="group"],
-form[data-type="unified-composer"] [role="group"] {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
+
+/* keep composer controls fixed when textarea expands (no first-char drop) */
+form[data-type="unified-composer"] [data-composer-surface="true"] {
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-areas:
+        "header header header"
+        "leading primary trailing"
+        ". footer ." !important;
 }
-form.group\/composer button,
-form[data-type="unified-composer"] button {
-  border-radius: 0 !important;
-  box-shadow: none !important;
+form[data-type="unified-composer"] [data-composer-surface="true"] > .\[grid-area\:leading\],
+form[data-type="unified-composer"] [data-composer-surface="true"] > .\[grid-area\:trailing\] {
+    align-self: start !important;
+}
+form[data-type="unified-composer"] [data-composer-surface="true"] > .\[grid-area\:leading\],
+form[data-type="unified-composer"] [data-composer-surface="true"] > .\[grid-area\:trailing\],
+form[data-type="unified-composer"] [data-composer-surface="true"] > .\[grid-area\:trailing\] > div {
+    display: flex !important;
+    align-items: flex-start !important;
+}
+
+/* hide composer scrollbar while keeping scroll behavior */
+:where(form.group\/composer, form[data-type="unified-composer"]) .wcDTda_prosemirror-parent,
+:where(form.group\/composer, form[data-type="unified-composer"]) .default-browser,
+#prompt-textarea,
+#prompt-textarea.ProseMirror {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    scrollbar-gutter: auto !important;
+}
+:where(form.group\/composer, form[data-type="unified-composer"]) .wcDTda_prosemirror-parent::-webkit-scrollbar,
+:where(form.group\/composer, form[data-type="unified-composer"]) .default-browser::-webkit-scrollbar,
+#prompt-textarea::-webkit-scrollbar,
+#prompt-textarea.ProseMirror::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+}
+
+/* kill action-row mask fade + mask-position animation */
+main div[aria-label$="actions"][role="group"] {
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+    transition: none !important;
+    animation: none !important;
+}
+
+/* remove thread bottom fade overlays */
+#thread-bottom-container,
+#thread-bottom-container::before,
+#thread-bottom-container::after,
+.content-fade,
+.content-fade::before,
+.content-fade::after {
+    background-image: none !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+    box-shadow: none !important;
+}
+
+/* pin composer container to viewport bottom and remove edge markers */
+#thread-bottom-container {
+    bottom: 0 !important;
+}
+.composer-parent [data-edge="true"] {
+    display: none !important;
+}
+
+/* remove bottom gap under composer so chat text cannot peek through */
+#thread-bottom .mb-\[var\(--thread-component-gap\,1rem\)\] {
+    margin-bottom: 0 !important;
+}
+
+/* Theme variables */
+html.light {
+    --composer-bg: #f7f7f7;
+    --composer-fg: #111111;
+    --composer-placeholder: rgba(0, 0, 0, 0.45);
+}
+html.dark {
+    --composer-bg: #141414;
+    --composer-fg: #ffffff;
+    --composer-placeholder: rgba(255, 255, 255, 0.55);
+    --sidebar-surface-primary: #141414 !important;
+    --sidebar-surface-secondary: #141414 !important;
+}
+
+/* Composer colors by active theme */
+:is(html.light, html.dark) :where(form.group\/composer, form[data-type="unified-composer"]),
+:is(html.light, html.dark) :where(form.group\/composer, form[data-type="unified-composer"]) > div,
+:is(html.light, html.dark) :where(form.group\/composer, form[data-type="unified-composer"]) > div > div,
+:is(html.light, html.dark) :where(form.group\/composer, form[data-type="unified-composer"]) [role="group"],
+:is(html.light, html.dark) #prompt-textarea,
+:is(html.light, html.dark) #prompt-textarea > div {
+    background: var(--composer-bg) !important;
+}
+:is(html.light, html.dark) #prompt-textarea,
+:is(html.light, html.dark) #prompt-textarea.ProseMirror {
+    color: var(--composer-fg) !important;
+}
+:is(html.light, html.dark) #prompt-textarea p.is-empty::before,
+:is(html.light, html.dark) #prompt-textarea [data-placeholder]::before {
+    color: var(--composer-placeholder) !important;
+}
+
+/* chat search modal: match input color, flatten list item corners */
+:is(html.light, html.dark) [role="dialog"].popover {
+    background: var(--composer-bg) !important;
+    box-shadow: none !important;
+}
+:is(html.light, html.dark) [role="dialog"].popover a > .rounded-xl {
+    border-radius: 0 !important;
+}
+
+/* hide text-edge bleed under sticky composer without width hacks */
+#thread-bottom-container,
+#thread-bottom {
+    overflow: clip !important;
+}
+
+/* Dark theme surfaces */
+html.dark body,
+html.dark main {
+    background: #1a1a1a !important;
+}
+
+/* force sidebar surface to match input background exactly */
+html.dark aside,
+html.dark nav,
+html.dark aside > div,
+html.dark aside section,
+html.dark [data-testid*="sidebar"],
+html.dark [class*="bg-token-sidebar"],
+html.dark [class*="sidebar-surface"] {
+    background-color: #141414 !important;
+    background-image: none !important;
+}
+
+/* collapsed tiny rail uses bg-transparent; force same dark surface */
+html.dark #stage-sidebar-tiny-bar {
+    background-color: #141414 !important;
+    background-image: none !important;
+}
+
+/* Hard reset any residual input rounding */
+:where(form.group\/composer, form[data-type="unified-composer"]),
+:where(form.group\/composer, form[data-type="unified-composer"]) > div,
+:where(form.group\/composer, form[data-type="unified-composer"]) > div > div,
+:where(form.group\/composer, form[data-type="unified-composer"]) button,
+:where(form.group\/composer, form[data-type="unified-composer"]) textarea,
+:where(form.group\/composer, form[data-type="unified-composer"]) [role="group"],
+#prompt-textarea,
+#prompt-textarea.ProseMirror {
+    border-radius: 0 !important;
 }
