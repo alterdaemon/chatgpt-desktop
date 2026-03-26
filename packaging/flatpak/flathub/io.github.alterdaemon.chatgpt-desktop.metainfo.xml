@@ -17,6 +17,12 @@
   <url type="homepage">https://github.com/alterdaemon/chatgpt-desktop</url>
   <url type="bugtracker">https://github.com/alterdaemon/chatgpt-desktop/issues</url>
   <url type="vcs-browser">https://github.com/alterdaemon/chatgpt-desktop</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Placeholder screenshot showing the ChatGPT Desktop window layout</caption>
+      <image>https://raw.githubusercontent.com/alterdaemon/chatgpt-desktop/main/.github/assets/flathub-placeholder-screenshot.png</image>
+    </screenshot>
+  </screenshots>
   <releases>
     <release version="1.5.0" date="2026-03-22" />
   </releases>

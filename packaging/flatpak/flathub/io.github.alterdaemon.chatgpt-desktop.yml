@@ -16,9 +16,6 @@ finish-args:
   - --share=network
   - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
-  - --talk-name=org.freedesktop.portal.Desktop
-  - --talk-name=org.freedesktop.portal.OpenURI
-  - --talk-name=org.freedesktop.portal.GlobalShortcuts
 modules:
   - name: chatgpt-desktop
     build-options:

@@ -27,7 +27,7 @@ If the app later gains runtime npm dependencies, add a generated source manifest
 
 1. Make sure the app version in `package.json` has a matching upstream Git tag and GitHub release archive.
 2. Update the source archive URL and `sha256` in `io.github.alterdaemon.chatgpt-desktop.yml` for that tagged release.
-3. Update the release entry in `io.github.alterdaemon.chatgpt-desktop.metainfo.xml`.
+3. Update the release entry in `io.github.alterdaemon.chatgpt-desktop.metainfo.xml` and replace the placeholder screenshot URL with the reviewer-facing screenshot you want to ship.
 4. Validate the Flathub assets:
 
    ```bash
@@ -41,6 +41,8 @@ If the app later gains runtime npm dependencies, add a generated source manifest
    ```
 
 6. Smoke-test the resulting bundle, then copy the manifest and helper files into the Flathub submission workflow as needed.
+
+The repository currently includes a placeholder screenshot asset at `.github/assets/flathub-placeholder-screenshot.png` so AppStream metadata stays complete during development. Replace it with an immutable release or submission screenshot URL before opening the actual Flathub review.
 
 To compute a fresh source checksum for a tagged release archive:
 
