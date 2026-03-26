@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.alterdaemon.chatgpt-desktop</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>ChatGPT Desktop (Unofficial)</name>
+  <summary>Unofficial Linux desktop shell for ChatGPT</summary>
+  <developer id="io.github.alterdaemon">
+    <name>alter.daemon</name>
+  </developer>
+  <launchable type="desktop-id">io.github.alterdaemon.chatgpt-desktop.desktop</launchable>
+  <content_rating type="oars-1.1" />
+  <description>
+    <p>ChatGPT Desktop wraps the ChatGPT web app in a Linux-focused Electron shell with saved settings, tray integration when supported by the session, keyboard-driven navigation, and user customization hooks.</p>
+    <p>This build is unofficial, is not affiliated with or endorsed by OpenAI, and keeps its config, data, and cache inside sandbox-managed XDG directories while using desktop portals for host integrations.</p>
+  </description>
+  <url type="homepage">https://github.com/alterdaemon/chatgpt-desktop</url>
+  <url type="bugtracker">https://github.com/alterdaemon/chatgpt-desktop/issues</url>
+  <url type="vcs-browser">https://github.com/alterdaemon/chatgpt-desktop</url>
+  <releases>
+    <release version="1.5.0" date="2026-03-22" />
+  </releases>
+  <categories>
+    <category>Network</category>
+    <category>Utility</category>
+  </categories>
+</component>

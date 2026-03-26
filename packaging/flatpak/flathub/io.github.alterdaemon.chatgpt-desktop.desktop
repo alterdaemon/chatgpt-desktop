@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ChatGPT Desktop (Unofficial)
+Comment=Unofficial desktop shell for ChatGPT
+Exec=chatgpt-desktop
+Icon=io.github.alterdaemon.chatgpt-desktop
+Categories=Network;
+StartupNotify=true
+StartupWMClass=chatgpt-desktop
+Terminal=false
+SingleMainWindow=true

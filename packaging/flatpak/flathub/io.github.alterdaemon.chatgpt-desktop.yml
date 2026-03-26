@@ -1,0 +1,67 @@
+app-id: io.github.alterdaemon.chatgpt-desktop
+branch: stable
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "24.08"
+command: chatgpt-desktop
+separate-locales: false
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --socket=pulseaudio
+  - --share=network
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
+  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.freedesktop.portal.OpenURI
+  - --talk-name=org.freedesktop.portal.GlobalShortcuts
+modules:
+  - name: chatgpt-desktop
+    build-options:
+      no-debuginfo: true
+    buildsystem: simple
+    build-commands:
+      - |
+        python3 - <<'PY'
+        import json
+        from pathlib import Path
+
+        package_path = Path("main/package.json")
+        package = json.loads(package_path.read_text())
+        package["desktopName"] = "io.github.alterdaemon.chatgpt-desktop.desktop"
+        package_path.write_text(json.dumps(package, indent=2) + "\n")
+        PY
+      - install -Dm755 chatgpt-desktop /app/bin/chatgpt-desktop
+      - install -Dm644 io.github.alterdaemon.chatgpt-desktop.desktop /app/share/applications/io.github.alterdaemon.chatgpt-desktop.desktop
+      - install -Dm644 io.github.alterdaemon.chatgpt-desktop.metainfo.xml /app/share/metainfo/io.github.alterdaemon.chatgpt-desktop.metainfo.xml
+      - install -Dm644 main/LICENSE /app/share/licenses/io.github.alterdaemon.chatgpt-desktop/LICENSE
+      - install -Dm644 main/main.js /app/lib/io.github.alterdaemon.chatgpt-desktop/main.js
+      - install -Dm644 main/preload.js /app/lib/io.github.alterdaemon.chatgpt-desktop/preload.js
+      - install -Dm644 main/package.json /app/lib/io.github.alterdaemon.chatgpt-desktop/package.json
+      - install -Dm644 main/page-modules/vimium-navigation.js /app/lib/io.github.alterdaemon.chatgpt-desktop/page-modules/vimium-navigation.js
+      - install -Dm644 main/build/icons/icon.png /app/lib/io.github.alterdaemon.chatgpt-desktop/build/icons/icon.png
+      - install -Dm644 main/build/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.alterdaemon.chatgpt-desktop.svg
+      - for size in 16 24 32 48 64 96 128 256 512; do install -Dm644 "main/build/icons/${size}x${size}.png" "/app/share/icons/hicolor/${size}x${size}/apps/io.github.alterdaemon.chatgpt-desktop.png"; done
+    sources:
+      - type: archive
+        url: https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v1.5.0.tar.gz
+        sha256: 2a8829e510be775140a89da2f511473781b5397aad8e670101bfb070fc7b752b
+        dest: main
+        strip-components: 1
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/alterdaemon/chatgpt-desktop/releases/latest
+          tag-query: .tag_name
+          version-query: .tag_name | sub("^v"; "")
+          timestamp-query: .published_at
+          url-query: '"https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/" + $tag + ".tar.gz"'
+      - type: file
+        path: chatgpt-desktop
+      - type: file
+        path: io.github.alterdaemon.chatgpt-desktop.desktop
+      - type: file
+        path: io.github.alterdaemon.chatgpt-desktop.metainfo.xml

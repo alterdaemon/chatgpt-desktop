@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -eu
+
+export TMPDIR="${XDG_RUNTIME_DIR}/app/${FLATPAK_ID}"
+
+APP_ROOT="/app/lib/io.github.alterdaemon.chatgpt-desktop"
+
+if command -v electron > /dev/null 2>&1; then
+  ELECTRON_BIN="$(command -v electron)"
+elif [ -x /app/bin/electron ]; then
+  ELECTRON_BIN="/app/bin/electron"
+else
+  printf 'Unable to locate the Electron runtime provided by BaseApp.\n' >&2
+  exit 1
+fi
+
+exec zypak-wrapper "${ELECTRON_BIN}" "${APP_ROOT}" "$@"

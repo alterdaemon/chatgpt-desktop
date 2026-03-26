@@ -40,7 +40,7 @@ npm install
 
 ## Flatpak runtime prerequisites
 
-To build or install the official Flatpak locally, make sure Flatpak, Flatpak Builder, desktop file validation, and AppStream validation tools are available:
+To build either Flatpak track locally, or install the official release bundle, make sure Flatpak, Flatpak Builder, desktop file validation, and AppStream validation tools are available:
 
 ```bash
 sudo apt update
@@ -57,6 +57,8 @@ npm run setup:flatpak
 
 By default this installs runtimes for the current user. If you prefer a system-wide install, run `FLATPAK_INSTALL_SCOPE=system npm run setup:flatpak`.
 
+Both the release bundle flow and the Flathub packaging track use these same runtimes.
+
 ## Run the app
 
 ```bash
@@ -66,6 +68,8 @@ npm start
 ## Install the Flatpak release artifact
 
 Official tagged releases also attach a `.flatpak` bundle alongside the `.AppImage` and `.deb` files.
+
+This release bundle flow is separate from the Flathub packaging track in `packaging/flatpak/flathub/`, which builds from a pinned source archive for review and submission work.
 
 ```bash
 flatpak install --user ./dist/chatgpt-desktop_<version>_<arch>.flatpak
@@ -195,10 +199,10 @@ Build outputs are generated in `dist/`:
 - `.AppImage`
 - `.deb`
 
-## Build the Flatpak bundle
+## Build the GitHub-release Flatpak bundle
 
 ```bash
-npm run build:flatpak
+npm run build:flatpak:release
 ```
 
 This command:
@@ -211,16 +215,36 @@ This command:
 - packages the Flatpak repo into `dist/flatpak-repo/`
 - exports a `.flatpak` bundle into `dist/`
 
+`npm run build:flatpak` remains available as an alias for this release-oriented flow.
+
 If you only want to validate the Flatpak metadata and manifest before building, run:
 
 ```bash
-npm run validate:flatpak-assets
+npm run validate:flatpak:release
 ```
+
+`npm run validate:flatpak-assets` remains available as an alias for this release-oriented validation step.
 
 Project Flatpak tracks:
 
-- `packaging/flatpak/release/` contains the GitHub-release-oriented Flatpak bundle flow.
-- `packaging/flatpak/flathub/` is reserved for the future Flathub-compliant source-build manifest.
+- `packaging/flatpak/release/` contains the GitHub-release-oriented Flatpak bundle flow that repackages `dist/linux-unpacked/`.
+- `packaging/flatpak/flathub/` contains the Flathub-oriented source-build manifest that installs pinned release sources into the Electron BaseApp runtime.
+
+## Build the Flathub Flatpak track
+
+```bash
+npm run validate:flatpak:flathub
+npm run build:flatpak:flathub
+```
+
+This track:
+
+- reads Flathub packaging assets from `packaging/flatpak/flathub/`
+- downloads the checksum-pinned GitHub release source archive instead of using `dist/linux-unpacked/`
+- stages the app's source files under `/app/lib/io.github.alterdaemon.chatgpt-desktop/` and runs them with the BaseApp-provided Electron runtime
+- writes temporary builder state to `dist/flathub-flatpak-build/`
+- writes the Flatpak repo to `dist/flathub-flatpak-repo/`
+- exports a local test bundle to `dist/flathub/`
 
 Flatpak-specific behavior notes:
 
@@ -231,6 +255,8 @@ Flatpak-specific behavior notes:
 ## GitHub Release Flow
 
 Pushing a version tag (for example `v1.5.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
+
+That workflow currently publishes the release-oriented `.flatpak` bundle; the Flathub packaging track is maintained separately in-repo for source-build validation and submission work.
 
 The workflow runs on GitHub-hosted Ubuntu and produces:
 
