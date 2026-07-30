@@ -1,5 +1,8 @@
 node_modules/
 dist/
+.flatpak-builder/
+playwright-report/
+test-results/
 *.log
 npm-debug.log*
 .DS_Store

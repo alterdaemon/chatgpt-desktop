@@ -37,6 +37,7 @@ modules:
       - install -Dm644 io.github.alterdaemon.chatgpt-desktop.metainfo.xml /app/share/metainfo/io.github.alterdaemon.chatgpt-desktop.metainfo.xml
       - install -Dm644 main/LICENSE /app/share/licenses/io.github.alterdaemon.chatgpt-desktop/LICENSE
       - install -Dm644 main/main.js /app/lib/io.github.alterdaemon.chatgpt-desktop/main.js
+      - if [ -f main/app-logic.js ]; then install -Dm644 main/app-logic.js /app/lib/io.github.alterdaemon.chatgpt-desktop/app-logic.js; fi
       - install -Dm644 main/preload.js /app/lib/io.github.alterdaemon.chatgpt-desktop/preload.js
       - install -Dm644 main/package.json /app/lib/io.github.alterdaemon.chatgpt-desktop/package.json
       - install -Dm644 main/page-modules/vimium-navigation.js /app/lib/io.github.alterdaemon.chatgpt-desktop/page-modules/vimium-navigation.js

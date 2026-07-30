@@ -6,7 +6,13 @@
 
 const path = require("path");
 const fs = require("fs");
-const crypto = require("crypto");
+const {
+  clampZoomFactor,
+  getInitialUrl,
+  isAllowedExternalUrl,
+  loadScriptManifest,
+  normalizeSettings,
+} = require("./app-logic");
 const {
   app,
   BrowserWindow,
@@ -31,7 +37,6 @@ const DEFAULT_SHOW_SHORTCUT = "CommandOrControl+Shift+Space";
 let showShortcut = DEFAULT_SHOW_SHORTCUT;
 const REPO_URL = "https://github.com/alterdaemon/chatgpt-desktop";
 let cachedVimiumNavigationModule = "";
-const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["https:", "http:"]);
 
 app.commandLine.appendSwitch("disable-smooth-scrolling");
 app.commandLine.appendSwitch("disable-gpu-vsync");
@@ -105,23 +110,7 @@ function loadCssOnce() {
 }
 
 function loadScriptsOnce() {
-  try {
-    cachedScripts = fs
-      .readdirSync(scriptsPath, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
-      .map((entry) => entry.name)
-      .sort((a, b) => a.localeCompare(b))
-      .map((fileName) => {
-        const script = fs.readFileSync(path.join(scriptsPath, fileName), "utf8");
-        return {
-          fileName,
-          script,
-          signature: crypto.createHash("sha256").update(script, "utf8").digest("hex"),
-        };
-      });
-  } catch {
-    cachedScripts = [];
-  }
+  cachedScripts = loadScriptManifest(scriptsPath);
 }
 
 function loadVimiumNavigationModuleOnce() {
@@ -135,23 +124,16 @@ function loadVimiumNavigationModuleOnce() {
 function loadSettings() {
   try {
     const rawSettings = fs.readFileSync(settingsPath, "utf8");
-    const settings = JSON.parse(rawSettings);
-
-    if (typeof settings.spellCheckEnabled === "boolean") {
-      spellCheckEnabled = settings.spellCheckEnabled;
-    }
-
-    if (typeof settings.showShortcut === "string" && settings.showShortcut.trim()) {
-      showShortcut = settings.showShortcut.trim();
-    }
-
-    if (typeof settings.zoomFactor === "number" && Number.isFinite(settings.zoomFactor)) {
-      zoomFactor = Math.min(3, Math.max(0.5, settings.zoomFactor));
-    }
-
-    if (typeof settings.vimiumNavigationEnabled === "boolean") {
-      vimiumNavigationEnabled = settings.vimiumNavigationEnabled;
-    }
+    const settings = normalizeSettings(JSON.parse(rawSettings), {
+      spellCheckEnabled,
+      showShortcut,
+      zoomFactor,
+      vimiumNavigationEnabled,
+    });
+    spellCheckEnabled = settings.spellCheckEnabled;
+    showShortcut = settings.showShortcut;
+    zoomFactor = settings.zoomFactor;
+    vimiumNavigationEnabled = settings.vimiumNavigationEnabled;
   } catch {}
 }
 
@@ -295,7 +277,7 @@ function getCurrentZoomFactor() {
 }
 
 function applyZoomFactor(value) {
-  zoomFactor = Math.min(3, Math.max(0.5, value));
+  zoomFactor = clampZoomFactor(value);
 
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
@@ -349,15 +331,6 @@ function showAbout() {
 
 function openHelp() {
   shell.openExternal(REPO_URL);
-}
-
-function isAllowedExternalUrl(rawUrl) {
-  try {
-    const parsed = new URL(rawUrl);
-    return ALLOWED_EXTERNAL_PROTOCOLS.has(parsed.protocol);
-  } catch {
-    return false;
-  }
 }
 
 function getZoomSubmenu() {
@@ -774,7 +747,7 @@ function createWindow() {
     runCustomizationStep("custom scripts", () => injectScripts());
   });
 
-  mainWindow.loadURL("https://chatgpt.com");
+  mainWindow.loadURL(getInitialUrl(process.env));
 }
 
 app.whenReady().then(() => {

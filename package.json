@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-desktop",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Minimal Electron wrapper for ChatGPT with optional customization, optimized for Linux",
   "homepage": "https://chatgpt.com",
   "main": "main.js",
@@ -23,10 +23,14 @@
     "validate:flatpak:release": "./packaging/flatpak/release/validate-flatpak-assets.sh",
     "validate:flatpak:flathub": "./packaging/flatpak/flathub/validate-flatpak-assets.sh",
     "validate:flatpak-assets": "npm run validate:flatpak:release",
+    "test:unit": "node --test test/unit/*.test.js",
+    "test:integration": "xvfb-run -a npx playwright test",
+    "test": "npm run test:unit && npm run test:integration",
     "release:linux": "npm run build:linux",
     "release:flatpak": "npm run build:flatpak:release"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12"
   },
@@ -36,6 +40,7 @@
     "npmRebuild": false,
     "files": [
       "main.js",
+      "app-logic.js",
       "preload.js",
       "page-modules/vimium-navigation.js",
       "package.json",

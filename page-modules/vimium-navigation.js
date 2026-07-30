@@ -539,7 +539,6 @@
       element.dispatchEvent(new EventCtor(eventName, eventInit));
     }
 
-    element.dispatchEvent(new MouseEvent("click", eventInit));
   }
 
   function activateElement(element, hint, alternate) {

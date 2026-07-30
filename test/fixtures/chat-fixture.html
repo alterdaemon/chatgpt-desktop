@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>ChatGPT Desktop Test Fixture</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; }
+      #page-header { height: 48px; padding: 8px; }
+      #scroll-root { height: 520px; overflow: auto; border: 1px solid #999; }
+      main { min-height: 1400px; padding: 24px; }
+      #thread { min-height: 900px; }
+      #prompt-textarea { display: block; height: 80px; margin-top: 24px; width: 500px; }
+    </style>
+  </head>
+  <body>
+    <header id="page-header"><span>Test fixture</span></header>
+    <div id="scroll-root" data-scroll-root>
+      <main>
+        <section id="thread">
+          <button id="hint-target" type="button">Activate target</button>
+          <output id="activation-count">0</output>
+          <textarea id="prompt-textarea" aria-label="Message"></textarea>
+        </section>
+      </main>
+    </div>
+    <script>
+      const count = document.getElementById("activation-count");
+      document.getElementById("hint-target").addEventListener("click", () => {
+        count.textContent = String(Number(count.textContent) + 1);
+      });
+    </script>
+  </body>
+</html>

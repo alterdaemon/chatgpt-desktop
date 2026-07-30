@@ -189,6 +189,18 @@ The app supports manual zoom controls from the app menu and tray menu.
 
 Use `Save Settings` if you want the current zoom level to persist across restarts.
 
+## Tests
+
+Run tests on Linux using Node 24. Install the virtual display server once, then run the full suite:
+
+```bash
+sudo apt install -y xvfb
+npm ci
+npm test
+```
+
+`npm run test:unit` covers settings, URL policy, and user-script manifests. `npm run test:integration` uses Playwright to launch the sandboxed Electron app against a local fixture page; it does not contact ChatGPT or require an account. Playwright's test runner and CLI are installed through `@playwright/test`; use `npx playwright test --debug` for interactive diagnosis rather than a separate `playwright-cli` package.
+
 ## Build Linux packages
 
 ```bash
