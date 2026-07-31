@@ -24,8 +24,9 @@
     "validate:flatpak:flathub": "./packaging/flatpak/flathub/validate-flatpak-assets.sh",
     "validate:flatpak-assets": "npm run validate:flatpak:release",
     "test:unit": "node --test test/unit/*.test.js",
-    "test:integration": "xvfb-run -a npx playwright test",
-    "test": "npm run test:unit && npm run test:integration",
+    "test:integration": "xvfb-run -a npx playwright test --project=integration",
+    "test:live": "xvfb-run -a npx playwright test --project=live",
+    "test": "npm run test:unit && npm run test:integration && npm run test:live",
     "release:linux": "npm run build:linux",
     "release:flatpak": "npm run build:flatpak:release"
   },

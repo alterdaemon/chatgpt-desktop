@@ -5,6 +5,7 @@ const path = require("path");
 const test = require("node:test");
 const {
   DEFAULT_INITIAL_URL,
+  clampZoomFactor,
   getInitialUrl,
   isAllowedExternalUrl,
   loadScriptManifest,
@@ -17,6 +18,15 @@ const defaults = {
   zoomFactor: 1,
   vimiumNavigationEnabled: true,
 };
+
+function withTempDirectory(run) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "chatgpt-desktop-scripts-"));
+  try {
+    return run(directory);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
 
 test("normalizes valid settings and rejects malformed values", () => {
   assert.deepEqual(
@@ -40,12 +50,86 @@ test("normalizes valid settings and rejects malformed values", () => {
   assert.equal(normalizeSettings({ zoomFactor: 0.1 }, defaults).zoomFactor, 0.5);
 });
 
+test("falls back to defaults for non-object settings payloads", () => {
+  for (const payload of [null, undefined, 42, "settings", true, []]) {
+    assert.deepEqual(normalizeSettings(payload, defaults), defaults, `payload: ${JSON.stringify(payload)}`);
+  }
+});
+
+test("ignores settings fields that have the wrong type", () => {
+  const normalized = normalizeSettings(
+    {
+      spellCheckEnabled: "true",
+      showShortcut: 123,
+      zoomFactor: "2",
+      vimiumNavigationEnabled: 1,
+    },
+    defaults
+  );
+
+  assert.deepEqual(normalized, defaults);
+});
+
+test("rejects blank shortcuts and non-finite zoom factors", () => {
+  assert.equal(normalizeSettings({ showShortcut: "   " }, defaults).showShortcut, defaults.showShortcut);
+  assert.equal(normalizeSettings({ zoomFactor: Number.POSITIVE_INFINITY }, defaults).zoomFactor, 1);
+  assert.equal(normalizeSettings({ zoomFactor: Number.NEGATIVE_INFINITY }, defaults).zoomFactor, 1);
+});
+
+test("returns a fresh settings object instead of mutating the defaults", () => {
+  const normalized = normalizeSettings({ spellCheckEnabled: true }, defaults);
+  normalized.showShortcut = "Control+Alt+Z";
+
+  assert.notEqual(normalized, defaults);
+  assert.equal(defaults.showShortcut, "CommandOrControl+Shift+Space");
+  assert.equal(defaults.spellCheckEnabled, false);
+});
+
+test("clamps the zoom factor to the supported range", () => {
+  assert.equal(clampZoomFactor(1), 1);
+  assert.equal(clampZoomFactor(0.5), 0.5);
+  assert.equal(clampZoomFactor(3), 3);
+  assert.equal(clampZoomFactor(0.4), 0.5);
+  assert.equal(clampZoomFactor(-10), 0.5);
+  assert.equal(clampZoomFactor(3.5), 3);
+  assert.equal(clampZoomFactor(Number.POSITIVE_INFINITY), 3);
+  assert.equal(clampZoomFactor(Number.NEGATIVE_INFINITY), 0.5);
+  // NaN passes straight through, so callers must screen it first; normalizeSettings does.
+  assert.equal(Number.isNaN(clampZoomFactor(Number.NaN)), true);
+});
+
 test("allows only supported external URL protocols", () => {
   assert.equal(isAllowedExternalUrl("https://example.test"), true);
   assert.equal(isAllowedExternalUrl("http://example.test"), true);
   assert.equal(isAllowedExternalUrl("javascript:alert(1)"), false);
   assert.equal(isAllowedExternalUrl("file:///tmp/file"), false);
   assert.equal(isAllowedExternalUrl("not a URL"), false);
+});
+
+test("rejects every non-web protocol and malformed input", () => {
+  for (const rawUrl of [
+    "mailto:someone@example.test",
+    "data:text/html,<script>alert(1)</script>",
+    "ftp://example.test/file",
+    "chrome://settings",
+    "about:blank",
+    "ws://example.test",
+    "",
+    "   ",
+    "//example.test",
+  ]) {
+    assert.equal(isAllowedExternalUrl(rawUrl), false, `expected ${JSON.stringify(rawUrl)} to be rejected`);
+  }
+
+  for (const rawUrl of [null, undefined, 42, {}]) {
+    assert.equal(isAllowedExternalUrl(rawUrl), false, `expected ${String(rawUrl)} to be rejected`);
+  }
+});
+
+test("normalizes protocol casing when checking external URLs", () => {
+  assert.equal(isAllowedExternalUrl("HTTPS://example.test"), true);
+  assert.equal(isAllowedExternalUrl("HtTp://example.test"), true);
+  assert.equal(isAllowedExternalUrl("JAVASCRIPT:alert(1)"), false);
 });
 
 test("uses a loopback fixture only in test mode", () => {
@@ -55,9 +139,25 @@ test("uses a loopback fixture only in test mode", () => {
   assert.equal(getInitialUrl({ NODE_ENV: "test", CHATGPT_DESKTOP_E2E_URL: "https://chatgpt.com/" }), DEFAULT_INITIAL_URL);
 });
 
+test("requires an explicit loopback port and plain http for the fixture override", () => {
+  assert.equal(getInitialUrl({}), DEFAULT_INITIAL_URL);
+  assert.equal(getInitialUrl({ NODE_ENV: "test" }), DEFAULT_INITIAL_URL);
+  assert.equal(getInitialUrl({ NODE_ENV: "test", CHATGPT_DESKTOP_E2E_URL: "" }), DEFAULT_INITIAL_URL);
+  assert.equal(getInitialUrl({ NODE_ENV: "test", CHATGPT_DESKTOP_E2E_URL: "http://127.0.0.1/" }), DEFAULT_INITIAL_URL);
+  assert.equal(getInitialUrl({ NODE_ENV: "test", CHATGPT_DESKTOP_E2E_URL: "https://127.0.0.1:3456/" }), DEFAULT_INITIAL_URL);
+  assert.equal(getInitialUrl({ NODE_ENV: "test", CHATGPT_DESKTOP_E2E_URL: "http://127.0.0.2:3456/" }), DEFAULT_INITIAL_URL);
+  assert.equal(getInitialUrl({ NODE_ENV: "test", CHATGPT_DESKTOP_E2E_URL: "not a url" }), DEFAULT_INITIAL_URL);
+});
+
+test("preserves the fixture path and query when the override is accepted", () => {
+  assert.equal(
+    getInitialUrl({ NODE_ENV: "test", CHATGPT_DESKTOP_E2E_URL: "http://127.0.0.1:3456/page?route=a#top" }),
+    "http://127.0.0.1:3456/page?route=a#top"
+  );
+});
+
 test("loads sorted JavaScript customization scripts with content signatures", () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "chatgpt-desktop-scripts-"));
-  try {
+  withTempDirectory((directory) => {
     fs.writeFileSync(path.join(directory, "b.js"), "window.second = true;");
     fs.writeFileSync(path.join(directory, "a.js"), "window.first = true;");
     fs.writeFileSync(path.join(directory, "ignored.txt"), "ignored");
@@ -66,7 +166,40 @@ test("loads sorted JavaScript customization scripts with content signatures", ()
     assert.deepEqual(manifest.map((script) => script.fileName), ["a.js", "b.js"]);
     assert.match(manifest[0].signature, /^[a-f0-9]{64}$/);
     assert.notEqual(manifest[0].signature, manifest[1].signature);
-  } finally {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
+  });
+});
+
+test("returns an empty manifest for missing or empty script directories", () => {
+  assert.deepEqual(loadScriptManifest("/definitely/not/a/real/directory"), []);
+  withTempDirectory((directory) => {
+    assert.deepEqual(loadScriptManifest(directory), []);
+  });
+});
+
+test("skips directories and non-JavaScript entries in the script manifest", () => {
+  withTempDirectory((directory) => {
+    fs.mkdirSync(path.join(directory, "nested.js"));
+    fs.writeFileSync(path.join(directory, "nested.js", "inner.js"), "window.inner = true;");
+    fs.writeFileSync(path.join(directory, "notes.md"), "# notes");
+    fs.writeFileSync(path.join(directory, "styles.css"), "body {}");
+    fs.writeFileSync(path.join(directory, "UPPER.JS"), "window.upper = true;");
+    fs.writeFileSync(path.join(directory, "real.js"), "window.real = true;");
+
+    // The extension filter is case sensitive, so only "real.js" qualifies.
+    assert.deepEqual(loadScriptManifest(directory).map((script) => script.fileName), ["real.js"]);
+  });
+});
+
+test("gives identical content identical signatures and orders names with localeCompare", () => {
+  withTempDirectory((directory) => {
+    fs.writeFileSync(path.join(directory, "10-second.js"), "window.same = true;");
+    fs.writeFileSync(path.join(directory, "2-first.js"), "window.same = true;");
+    fs.writeFileSync(path.join(directory, "a-third.js"), "window.different = true;");
+
+    const manifest = loadScriptManifest(directory);
+    assert.deepEqual(manifest.map((script) => script.fileName), ["10-second.js", "2-first.js", "a-third.js"]);
+    assert.equal(manifest[0].signature, manifest[1].signature);
+    assert.notEqual(manifest[0].signature, manifest[2].signature);
+    assert.equal(manifest[0].script, "window.same = true;");
+  });
 });

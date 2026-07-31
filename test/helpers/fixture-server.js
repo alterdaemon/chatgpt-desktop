@@ -2,11 +2,13 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
-function startFixtureServer() {
-  const fixturePath = path.join(__dirname, "..", "fixtures", "chat-fixture.html");
+function startFixtureServer(fixtureName = "chat-fixture.html") {
+  const fixturePath = path.join(__dirname, "..", "fixtures", fixtureName);
   const fixture = fs.readFileSync(fixturePath);
   const server = http.createServer((request, response) => {
-    if (request.url !== "/") {
+    // Any path serves the fixture so in-page route changes stay on the origin,
+    // but the query/hash still distinguishes routes for the script registry.
+    if (request.url.startsWith("/missing")) {
       response.writeHead(404);
       response.end();
       return;

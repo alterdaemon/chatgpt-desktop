@@ -199,7 +199,15 @@ npm ci
 npm test
 ```
 
-`npm run test:unit` covers settings, URL policy, and user-script manifests. `npm run test:integration` uses Playwright to launch the sandboxed Electron app against a local fixture page; it does not contact ChatGPT or require an account. Playwright's test runner and CLI are installed through `@playwright/test`; use `npx playwright test --debug` for interactive diagnosis rather than a separate `playwright-cli` package.
+`npm test` runs all three suites in order:
+
+- `npm run test:unit` covers settings normalization, zoom clamping, the external URL policy, and user-script manifests. No display or network access is required.
+- `npm run test:integration` launches the sandboxed Electron app against a local fixture page and needs no account. It covers custom CSS and user-script injection, application menu actions, zoom limits, spellcheck, settings persistence and recovery from a damaged settings file, the Vimium-style navigation keys and link hint modes, and the renderer security boundaries.
+- `npm run test:live` signs in to ChatGPT and checks a real assistant reply. It needs an account and network access.
+
+Playwright's test runner and CLI are installed through `@playwright/test`; use `npx playwright test --debug` for interactive diagnosis rather than a separate `playwright-cli` package.
+
+The live check reads `CHATGPT_TEST_EMAIL` and `CHATGPT_TEST_PASSWORD` from the environment. It signs in once in a separate Electron run and stores the session in an ignored profile directory, so later runs reuse that session and skip the sign-in. Each passing run sends one short prompt to the configured account, which leaves a conversation in that account's history. Skip this suite with `npm run test:unit && npm run test:integration` if you would rather not use a real account.
 
 ## Build Linux packages
 
@@ -266,7 +274,7 @@ Flatpak-specific behavior notes:
 
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.5.0`) triggers the GitHub Actions release workflow, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.6.0`) triggers the GitHub Actions release workflow, runs the test suites, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 That workflow currently publishes the release-oriented `.flatpak` bundle; the Flathub packaging track is maintained separately in-repo for source-build validation and submission work.
 
@@ -278,10 +286,10 @@ The workflow runs on GitHub-hosted Ubuntu and produces:
 
 ```bash
 git add .
-git commit -m "release: publish chatgpt-desktop v1.5.0 with Flatpak packaging support"
-git tag v1.5.0
+git commit -m "release: publish chatgpt-desktop v1.6.0"
+git tag v1.6.0
 git push origin main
-git push origin v1.5.0
+git push origin v1.6.0
 ```
 
 The tag push is what triggers the release workflow.

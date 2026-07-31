@@ -29,3 +29,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+        env:
+          CHATGPT_TEST_EMAIL: ${{ secrets.CHATGPT_TEST_EMAIL }}
+          CHATGPT_TEST_PASSWORD: ${{ secrets.CHATGPT_TEST_PASSWORD }}

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>ChatGPT Desktop Vimium Fixture</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; }
+      #page-header { height: 40px; padding: 4px; }
+      /* Scrollable on both axes so h/l and j/k both have a real target. */
+      #scroll-root { height: 400px; width: 900px; overflow: auto; border: 1px solid #999; }
+      main { min-height: 1600px; width: 2400px; padding: 12px; }
+      .row { margin: 6px 0; }
+      #btn-one, #btn-two { display: block; width: 160px; height: 28px; }
+      #link-external { display: inline-block; padding: 6px 10px; }
+      #editable { width: 300px; min-height: 40px; border: 1px solid #ccc; padding: 4px; }
+      #prompt-textarea { display: block; height: 60px; width: 400px; margin-top: 8px; }
+      #filler { height: 1200px; }
+    </style>
+  </head>
+  <body>
+    <header id="page-header"><span>Vimium fixture</span></header>
+    <div id="scroll-root" data-scroll-root>
+      <main>
+        <section id="thread">
+          <div class="row"><button id="btn-one" type="button">One</button></div>
+          <div class="row"><button id="btn-two" type="button">Two</button></div>
+          <div class="row"><a id="link-external" href="https://example.test/opened">External</a></div>
+          <div class="row"><div id="editable" contenteditable="true">editable</div></div>
+          <textarea id="prompt-textarea" aria-label="Message"></textarea>
+          <div id="filler"></div>
+        </section>
+      </main>
+    </div>
+    <output id="activation-log"></output>
+    <script>
+      const log = document.getElementById("activation-log");
+      for (const id of ["btn-one", "btn-two"]) {
+        document.getElementById(id).addEventListener("click", () => {
+          log.textContent = log.textContent ? `${log.textContent},${id}` : id;
+        });
+      }
+      // Keep the external link from actually navigating the fixture window;
+      // the alternate-hint path is asserted through the window-open handler.
+      document.getElementById("link-external").addEventListener("click", (event) => {
+        event.preventDefault();
+        log.textContent = log.textContent ? `${log.textContent},link` : "link";
+      });
+    </script>
+  </body>
+</html>

@@ -7,11 +7,14 @@ All notable changes to this project will be documented in this file.
 ### Added
 - A Flathub-oriented Flatpak source-build track with pinned sources, constrained permissions, AppStream metadata, validation, and local bundle generation.
 - Automated unit tests and fixture-based Playwright Electron integration tests, run on pull requests, branch pushes, and release builds.
+- Integration coverage for custom CSS and user-script injection, menu actions, zoom limits, spellcheck, settings persistence and recovery from a damaged settings file, Vimium-style navigation and link hint modes, and the renderer security boundaries.
+- An authenticated smoke test that signs in to ChatGPT and verifies a real assistant reply, reusing a stored session between runs so repeat runs skip the sign-in.
 
 ### Changed
 - Updated the supported development and CI runtime to Node 24.
 - Documented the Linux build and test workflows.
 - Kept application settings, custom CSS, custom scripts, URL policy, and zoom behavior unchanged while moving their pure logic into a testable runtime module.
+- Split the test suites so the offline fixture tests and the account-backed ChatGPT check can be run independently.
 
 ### Fixed
 - Vimium hint activation now dispatches a single click to the selected control.

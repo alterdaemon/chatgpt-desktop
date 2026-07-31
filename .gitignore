@@ -3,6 +3,7 @@ dist/
 .flatpak-builder/
 playwright-report/
 test-results/
+.live-chatgpt-profile/
 *.log
 npm-debug.log*
 .DS_Store
