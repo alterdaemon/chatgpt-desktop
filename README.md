@@ -1,5 +1,11 @@
 # ChatGPT Desktop for Linux (Unofficial)
 
+> [!IMPORTANT]
+> **This project is archived and is no longer maintained.** OpenAI now publishes an
+> [official ChatGPT desktop app for Linux](https://chatgpt.com/download/), available in public preview on supported
+> Linux distributions. See the [official ChatGPT release notes](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)
+> for current availability and support details. Version 1.6.0 is the final release of this unofficial app.
+
 A Linux desktop app for ChatGPT built to make the web app feel faster, cleaner, and far more usable as a real daily tool.
 
 What started as a simple Electron wrapper has evolved into a focused desktop shell for ChatGPT: better windowing behavior, tray integration, persistent settings, keyboard-driven navigation, zoom controls, and power-user customization that smooth out rough edges in the browser experience.
