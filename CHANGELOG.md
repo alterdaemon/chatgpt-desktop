@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.6.0] - 2026-07-31
+## [1.6.0] - 2026-11-27
 
 ### Added
 - A Flathub-oriented Flatpak source-build track with pinned sources, constrained permissions, AppStream metadata, validation, and local bundle generation.
@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - An authenticated smoke test that signs in to ChatGPT and verifies a real assistant reply, reusing a stored session between runs so repeat runs skip the sign-in.
 
 ### Changed
+- Resumed project maintenance and removed the archived-project notice.
 - Updated the supported development and CI runtime to Node 24.
 - Documented the Linux build and test workflows.
 - Kept application settings, custom CSS, custom scripts, URL policy, and zoom behavior unchanged while moving their pure logic into a testable runtime module.
@@ -18,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Vimium hint activation now dispatches a single click to the selected control.
+- Wait for fixture scroll resets to finish before testing Vimium hints, preventing a test-order timing failure.
 
 ## [1.5.0] - 2026-03-22
 

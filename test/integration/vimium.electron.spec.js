@@ -38,6 +38,8 @@ async function resetPage() {
     }
   });
   await page.keyboard.press("Escape");
+  // Flush the reset's scroll events before hints attach their cleanup listener.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
 }
 
 test.beforeAll(async () => {
