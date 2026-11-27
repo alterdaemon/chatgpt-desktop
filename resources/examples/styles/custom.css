@@ -155,7 +155,7 @@ form[data-chatgpt-composer] * {
    through. Keep the cover and match it to the dark surface set below; left as the site's own black
    it shows as a band under the composer. The light theme already matches. */
 html[data-theme="dark"] [data-app-action-timeline-scroll] > :has(> [data-thread-scroll-footer])::after {
-    background-color: #1a1a1a !important;
+    background-color: #0a0a0a !important;
 }
 
 /* flat interface: no edge fade inside the composer. Only divs are cleared, because the icons on
@@ -194,7 +194,7 @@ html[data-theme="light"] main:has([data-app-shell-main-content-layout="thread-ed
 }
 
 html[data-theme="dark"] main:has([data-app-shell-main-content-layout="thread-edge-scroll"]) header [data-app-shell-main-titlebar] {
-    background-color: #1a1a1a !important;
+    background-color: #0a0a0a !important;
 }
 
 /* avoid smooth scroll jank during streamed output */
@@ -212,16 +212,26 @@ html[data-theme="light"] form[data-chatgpt-composer] > div {
 
 html[data-theme="dark"] body,
 html[data-theme="dark"] main {
-    background-color: #1a1a1a !important;
+    background-color: #0a0a0a !important;
+}
+
+/* Vimium-style navigation may focus the frame/scroller. Hide only that frame's
+   bright focus ring, not focus indicators on buttons, links or other controls. */
+html[data-theme="dark"] main,
+html[data-theme="dark"] main [data-app-shell-main-content-layout],
+html[data-theme="dark"] main [data-app-action-timeline-scroll] {
+    border-color: #0a0a0a !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 html[data-theme="dark"] aside,
 html[data-theme="dark"] #app-shell-sidebar {
-    background-color: #141414 !important;
+    background-color: #000000 !important;
     background-image: none !important;
 }
 
 html[data-theme="dark"] form[data-chatgpt-composer] > div {
-    background-color: #141414 !important;
+    background-color: #1a1a1a !important;
     color: #ffffff !important;
 }

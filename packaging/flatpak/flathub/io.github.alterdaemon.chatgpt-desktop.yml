@@ -45,6 +45,7 @@ modules:
       - install -Dm644 main/preload.js /app/lib/io.github.alterdaemon.chatgpt-desktop/preload.js
       - install -Dm644 main/package.json /app/lib/io.github.alterdaemon.chatgpt-desktop/package.json
       - install -Dm644 main/page-modules/vimium-navigation.js /app/lib/io.github.alterdaemon.chatgpt-desktop/page-modules/vimium-navigation.js
+      - if [ -f main/page-modules/sidebar-usage.js ]; then install -Dm644 main/page-modules/sidebar-usage.js /app/lib/io.github.alterdaemon.chatgpt-desktop/page-modules/sidebar-usage.js; fi
       - install -Dm644 main/build/icons/icon.png /app/lib/io.github.alterdaemon.chatgpt-desktop/build/icons/icon.png
       - install -Dm644 main/build/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.alterdaemon.chatgpt-desktop.svg
       - for size in 16 24 32 48 64 96 128 256 512; do install -Dm644 "main/build/icons/${size}x${size}.png" "/app/share/icons/hicolor/${size}x${size}/apps/io.github.alterdaemon.chatgpt-desktop.png"; done

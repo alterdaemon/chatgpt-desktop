@@ -172,7 +172,7 @@ test.describe("example stylesheet", () => {
       await page.locator("main header").evaluate((el) => {
         Object.assign(el.style, { position: "fixed", left: "300px", right: "0", top: "0", zIndex: "30" });
       });
-      for (const [theme, color] of [["light", "rgb(252, 252, 252)"], ["dark", "rgb(26, 26, 26)"]]) {
+      for (const [theme, color] of [["light", "rgb(252, 252, 252)"], ["dark", "rgb(10, 10, 10)"]]) {
         await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
         const titlebar = page.locator("[data-app-shell-main-titlebar]");
         const before = await titlebar.boundingBox();
@@ -197,7 +197,7 @@ test.describe("example stylesheet", () => {
         await layout.evaluate((el) => el.setAttribute("data-app-shell-main-content-layout", "full-bleed"));
         await expect(titlebar).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
         await layout.evaluate((el) => el.setAttribute("data-app-shell-main-content-layout", "thread-edge-scroll"));
-        await expect(titlebar).toHaveCSS("background-color", theme === "dark" ? "rgb(26, 26, 26)" : "rgb(252, 252, 252)");
+        await expect(titlebar).toHaveCSS("background-color", theme === "dark" ? "rgb(10, 10, 10)" : "rgb(252, 252, 252)");
       }
     } finally {
       await session.close();
@@ -216,23 +216,52 @@ test.describe("example stylesheet", () => {
     }
   });
 
+  test("does not paint a bright chat-frame focus ring when using hint mode", async () => {
+    const session = await launch(exampleCss);
+    const { page } = session;
+    try {
+      await page.evaluate(() => {
+        document.documentElement.setAttribute("data-theme", "dark");
+        for (const element of document.querySelectorAll("main, main [data-app-shell-main-content-layout], main [data-app-action-timeline-scroll]")) {
+          element.tabIndex = -1;
+          Object.assign(element.style, { border: "1px solid white", outline: "2px solid white", boxShadow: "0 0 0 2px white" });
+        }
+        document.querySelector("#header-share").style.outline = "2px solid rgb(0, 90, 255)";
+      });
+      for (const selector of ["main", "[data-app-shell-main-content-layout]", "[data-app-action-timeline-scroll]"]) {
+        await page.locator(selector).focus();
+        await page.keyboard.press("f");
+        await expect(page.locator("[data-chatgpt-desktop-hints]")).toBeVisible();
+        await expect(page.locator(selector)).toHaveCSS("border-top-color", "rgb(10, 10, 10)");
+        await expect(page.locator(selector)).toHaveCSS("outline-style", "none");
+        await expect(page.locator(selector)).toHaveCSS("box-shadow", "none");
+        await page.keyboard.press("Escape");
+      }
+      await page.locator("#header-share").focus();
+      await expect(page.locator("#header-share")).toHaveCSS("outline-color", "rgb(0, 90, 255)");
+      await expect(page.locator("#header-share")).toHaveCSS("outline-style", "solid");
+    } finally {
+      await session.close();
+    }
+  });
+
   test("applies theme surfaces from html[data-theme]", async () => {
     const session = await launch(exampleCss);
     const { page } = session;
     try {
       await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
-      await expect(page.locator("#app-shell-sidebar")).toHaveCSS("background-color", "rgb(20, 20, 20)");
-      await expect(page.locator("main")).toHaveCSS("background-color", "rgb(26, 26, 26)");
-      await expect(page.locator("form[data-chatgpt-composer] > div")).toHaveCSS("background-color", "rgb(20, 20, 20)");
+      await expect(page.locator("#app-shell-sidebar")).toHaveCSS("background-color", "rgb(0, 0, 0)");
+      await expect(page.locator("main")).toHaveCSS("background-color", "rgb(10, 10, 10)");
+      await expect(page.locator("form[data-chatgpt-composer] > div")).toHaveCSS("background-color", "rgb(26, 26, 26)");
 
       await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
       await expect(page.locator("form[data-chatgpt-composer] > div")).toHaveCSS("background-color", "rgb(247, 247, 247)");
       // The dark sidebar color must not leak into the light theme.
-      await expect(page.locator("#app-shell-sidebar")).not.toHaveCSS("background-color", "rgb(20, 20, 20)");
+      await expect(page.locator("#app-shell-sidebar")).not.toHaveCSS("background-color", "rgb(0, 0, 0)");
 
       // An unrecognized theme leaves the site's colors alone.
       await page.evaluate(() => document.documentElement.setAttribute("data-theme", "sepia"));
-      await expect(page.locator("main")).not.toHaveCSS("background-color", "rgb(26, 26, 26)");
+      await expect(page.locator("main")).not.toHaveCSS("background-color", "rgb(10, 10, 10)");
     } finally {
       await session.close();
     }

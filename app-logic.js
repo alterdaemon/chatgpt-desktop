@@ -99,6 +99,11 @@ function getBrowserUserAgent(userAgent) {
   return userAgent.replace(/\s(?:Electron|chatgpt-desktop)\/\S+/gi, "");
 }
 
+function isChatGPTSettingsShortcut(input) {
+  return input.type === "keyDown" && input.control && !input.alt && !input.meta && !input.isAutoRepeat &&
+    (input.key === "," || (input.code === "Comma" && !input.shift));
+}
+
 function normalizeSettings(settings, defaults) {
   const normalized = { ...defaults };
 
@@ -181,6 +186,7 @@ module.exports = {
   getPermissionDecision,
   isAllowedExternalUrl,
   isApplicationUrl,
+  isChatGPTSettingsShortcut,
   isTrustedNavigationUrl,
   loadScriptManifest,
   normalizeSettings,

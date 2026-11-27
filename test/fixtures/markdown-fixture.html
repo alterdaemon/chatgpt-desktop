@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head><meta charset="utf-8"><title>Markdown preservation fixture</title>
+  <!-- Semantic fixture only, not a capture of private ChatGPT content. -->
+  <style>
+    :root { --radius-lg: 8px; }
+    body { margin: 0; background: #fcfcfc; color: #111; }
+    html[data-theme="dark"] body { background: #000; color: #eee; }
+    main { margin: 16px; max-width: 900px; }
+    pre { white-space: pre; overflow-x: auto; border: 1px solid currentColor; border-radius: var(--radius-lg); padding: 8px; }
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid currentColor; padding: 4px; }
+    blockquote { border-left: 3px solid currentColor; padding-left: 8px; }
+  </style>
+</head>
+<body><main><article data-markdown-text-style="assistant-message">
+  <h1>Fixture heading</h1>
+  <p>Fixture <strong>strong text</strong>, <em>emphasis</em> and <code id="inline-code">answer</code>.</p>
+  <ul><li>Unordered fixture item</li></ul>
+  <ol><li>Ordered fixture item</li></ol>
+  <pre><code id="fenced-code">const answer = 42;
+  return answer;
+</code></pre>
+  <table><thead><tr><th>Fixture column</th></tr></thead><tbody><tr><td>42</td></tr></tbody></table>
+  <blockquote>Fixture quotation</blockquote>
+  <p><a href="#reference">Fixture reference</a></p>
+  <p data-fixture-fallback>Current selection unavailable</p>
+</article></main></body></html>

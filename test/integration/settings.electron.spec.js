@@ -18,22 +18,78 @@ const DEFAULT_SETTINGS = {
   trustedNavigationHosts: [],
 };
 
-test("Control+. opens ChatGPT Settings while typing without a global shortcut", async () => {
-  const fixture = await startFixtureServer();
-  const profile = createProfile();
+for (const [name, editor, modifiers] of [
+  ["Control+,", "#prompt-textarea", ["control"]],
+  ["Control+, in the current composer", "#composer-input", ["control"]],
+]) test(`${name} opens actual Settings while typing without a global shortcut`, async () => {
+  const fixture = await startFixtureServer("settings-navigation-fixture.html");
+  const profile = createProfile({ css: "body { font-family: monospace !important; font-size: 19px !important; }", settings: JSON.stringify({ ...DEFAULT_SETTINGS, zoomFactor: 1.25 }) });
   const app = await launchApp(profile, fixture.url);
   try {
     const page = await app.firstWindow();
     await page.waitForURL(fixture.url);
-    await page.locator("#prompt-textarea").focus();
-    expect(await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered("Control+."))).toBe(false);
+    await page.evaluate(() => { window.__settingsDocumentMarker = true; });
+    let documentRequests = 0;
+    page.on("request", request => { if (request.resourceType() === "document") documentRequests++; });
+    await page.locator(editor).focus();
+    expect(await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered("Control+,"))).toBe(false);
+    expect(await app.evaluate(({ Menu }) => {
+      const item = Menu.getApplicationMenu().getMenuItemById("chatgpt-settings");
+      return { accelerator: item.accelerator, enabled: item.enabled };
+    })).toEqual({ accelerator: "Control+,", enabled: true });
     // CDP keyboard events bypass before-input-event; use Electron's input pipeline.
-    await app.evaluate(({ BrowserWindow }) => {
+    await app.evaluate(({ BrowserWindow }, modifiers) => {
       const contents = BrowserWindow.getAllWindows()[0].webContents;
-      contents.sendInputEvent({ type: "keyDown", keyCode: ".", modifiers: ["control"] });
-      contents.sendInputEvent({ type: "keyUp", keyCode: ".", modifiers: ["control"] });
-    });
+      contents.sendInputEvent({ type: "keyDown", keyCode: ",", modifiers });
+      contents.sendInputEvent({ type: "keyUp", keyCode: ",", modifiers });
+    }, modifiers);
     await expect(page).toHaveURL(new URL("/settings/account", fixture.url).href);
+    await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+    await expect(page.locator('[data-app-shell-main-content-layout="full-bleed"] input')).toBeVisible();
+    await expect(page.locator(editor)).toHaveCount(0);
+    expect(await page.evaluate(() => window.__settingsDocumentMarker)).toBe(true);
+    expect(documentRequests).toBe(0);
+    expect(await getZoomFactor(app)).toBe(1.25);
+    await expect(page.locator("body")).toHaveCSS("font-family", "monospace");
+    await expect(page.locator("body")).toHaveCSS("font-size", "19px");
+    await page.goBack();
+    await expect(page.locator(editor)).toBeVisible();
+    // The old shortcut is not intercepted and must not reopen Settings.
+    await app.evaluate(({ BrowserWindow }) => {
+      const wc = BrowserWindow.getAllWindows()[0].webContents;
+      wc.sendInputEvent({ type: "keyDown", keyCode: ".", modifiers: ["control"] });
+      wc.sendInputEvent({ type: "keyUp", keyCode: ".", modifiers: ["control"] });
+    });
+    expect(page.url()).toBe(fixture.url);
+    expect(await page.evaluate(() => window.__settingsDocumentMarker)).toBe(true);
+  } finally {
+    await app.close();
+    await fixture.close();
+    profile.remove();
+  }
+});
+
+test("ChatGPT Settings menu fallback opens Settings and is disabled outside the application origin", async () => {
+  const fixture = await startFixtureServer("settings-navigation-fixture.html");
+  const profile = createProfile({ settings: JSON.stringify({ trustedNavigationHosts: ["localhost"] }) });
+  const app = await launchApp(profile, fixture.url);
+  try {
+    const page = await app.firstWindow();
+    await page.waitForURL(fixture.url);
+    await page.evaluate(() => { window.__settingsDocumentMarker = true; });
+    await clickMenuItem(app, "ChatGPT Settings");
+    await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => window.__settingsDocumentMarker)).toBe(true);
+    await page.goto(fixture.altUrl);
+    await expect.poll(() => app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById("chatgpt-settings").enabled)).toBe(false);
+    const prevented = await app.evaluate(({ BrowserWindow }) => new Promise(resolve => {
+      const wc = BrowserWindow.getAllWindows()[0].webContents;
+      wc.once("before-input-event", event => resolve(event.defaultPrevented));
+      wc.sendInputEvent({ type: "keyDown", keyCode: ",", modifiers: ["control"] });
+      wc.sendInputEvent({ type: "keyUp", keyCode: ",", modifiers: ["control"] });
+    }));
+    expect(prevented).toBe(false);
+    expect(page.url()).toBe(fixture.altUrl);
   } finally {
     await app.close();
     await fixture.close();
@@ -80,6 +136,7 @@ test.describe("menus, zoom and spellcheck", () => {
       "Show",
       "Hide",
       "Refresh",
+      "ChatGPT Settings",
       "Zoom",
       "Spellcheck",
       "Vimium-Style Navigation",

@@ -11,6 +11,7 @@ const {
   getPermissionDecision,
   isAllowedExternalUrl,
   isApplicationUrl,
+  isChatGPTSettingsShortcut,
   isTrustedNavigationUrl,
   loadScriptManifest,
   normalizeSettings,
@@ -117,6 +118,17 @@ test("removes native app markers without changing the browser or platform versio
 test("preserves unrelated user-agent tokens", () => {
   const agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/160.0.0.0 Safari/537.36 OtherElectron/1.0";
   assert.equal(getBrowserUserAgent(agent), agent);
+});
+
+test("Settings shortcut accepts Control+comma but not the old Control+period", () => {
+  const base = { type: "keyDown", key: ",", code: "Comma", control: true };
+  assert.equal(isChatGPTSettingsShortcut(base), true);
+  assert.equal(isChatGPTSettingsShortcut({ ...base, code: "KeyM", shift: true }), true);
+  assert.equal(isChatGPTSettingsShortcut({ ...base, key: "localized-character" }), true);
+  for (const changes of [
+    { control: false }, { alt: true }, { meta: true }, { type: "keyUp" }, { isAutoRepeat: true },
+    { key: "<", shift: true }, { key: ".", code: "Period" },
+  ]) assert.equal(isChatGPTSettingsShortcut({ ...base, ...changes }), false);
 });
 
 test("allows only supported external URL protocols", () => {

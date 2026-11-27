@@ -6,6 +6,14 @@ test("uses a browser-compatible agent for initial navigation, page scripts, fetc
   const requests = [];
   const server = http.createServer((request, response) => {
     requests.push({ path: request.url, agent: request.headers["user-agent"] });
+    if (request.url === "/history") {
+      const native = /(?:Electron|chatgpt-desktop)\//i.test(request.headers["user-agent"] || "");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ content: native ? "Fixture fallback" : "Fixture interactive reply", metadata: native ? {} : {
+        model_dil_v2: { code: "fixture-interactive-code", fallbackMarkdown: "Fixture fallback", fallbackMarkdownVersion: 1 },
+      } }));
+      return;
+    }
     if (request.url === "/agent") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ agent: request.headers["user-agent"] }));
@@ -39,6 +47,10 @@ test("uses a browser-compatible agent for initial navigation, page scripts, fetc
     expect(runtime.session).toBe(agent);
     expect(requests.find((request) => request.path === "/").agent).toBe(agent);
     expect(await page.evaluate(() => fetch("/agent").then((response) => response.json()))).toEqual({ agent });
+    // A controlled server fixture selects the rich payload only for a browser
+    // agent. The wrapper must not strip its code or legitimate fallback.
+    const history = await page.evaluate(() => fetch("/history").then(response => response.json()));
+    expect(history.metadata.model_dil_v2).toEqual({ code: "fixture-interactive-code", fallbackMarkdown: "Fixture fallback", fallbackMarkdownVersion: 1 });
     await page.reload();
     expect(await page.evaluate(() => window.initialAgent)).toBe(agent);
     await page.goto(`${url}next`);

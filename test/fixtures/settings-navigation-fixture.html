@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Settings navigation fixture</title></head>
+<body><main id="view"></main>
+<template id="chat">
+  <div data-app-shell-main-content-layout="thread-edge-scroll">
+    <textarea id="prompt-textarea" aria-label="Legacy message"></textarea>
+    <form data-chatgpt-composer><div id="composer-input" role="textbox" contenteditable="true" aria-label="Current message"></div></form>
+  </div>
+</template>
+<template id="settings">
+  <header><div data-app-shell-main-titlebar></div></header>
+  <div data-app-shell-main-content-layout="full-bleed">
+    <h1>Account</h1><label>Fixture account control <input type="checkbox"></label>
+  </div>
+</template>
+<script>
+  function renderRoute() {
+    const template = document.querySelector(location.pathname === "/settings/account" ? "#settings" : "#chat");
+    document.querySelector("#view").replaceChildren(template.content.cloneNode(true));
+  }
+  window.addEventListener("popstate", renderRoute);
+  renderRoute();
+</script></body></html>

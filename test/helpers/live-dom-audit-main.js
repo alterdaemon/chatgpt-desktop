@@ -142,6 +142,12 @@ function auditPage(anchors, withCss) {
     })(),
   };
   out.withCss = withCss;
+  const usageLabels = [...document.querySelectorAll("[data-chatgpt-desktop-usage-percent]")];
+  out.sidebarUsage = {
+    total: usageLabels.length,
+    visible: usageLabels.filter(visible).length,
+    valid: usageLabels.every(element => /^(?:100|\d{1,2})%$/.test(element.textContent)),
+  };
   return out;
 }
 
@@ -162,7 +168,9 @@ function auditHints() {
       : el.closest("main") ? "thread" : "other";
     regions[region] = (regions[region] || 0) + 1;
   }
-  return { total, regions };
+  const frameOutlines = [...document.querySelectorAll("main, main [data-app-shell-main-content-layout], main [data-app-action-timeline-scroll]")]
+    .filter(element => { const style = getComputedStyle(element); return style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0; }).length;
+  return { total, regions, frameOutlines };
 }
 // -----------------------------------------------------------------------------------------------
 

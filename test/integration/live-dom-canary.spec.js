@@ -84,6 +84,8 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
       const where = `${route.route} page, ${theme} theme`;
 
       expect(result.dataTheme, `${where}: html[data-theme] should report the forced theme`).toBe(theme);
+      expect(result.sidebarUsage.valid, `${where}: usage labels must contain only a valid percentage`).toBe(true);
+      expect(result.sidebarUsage.visible, `${where}: available usage labels must be visible without hover`).toBe(result.sidebarUsage.total);
 
       const missing = Object.entries(result.anchors)
         .filter(([, count]) => count < 1)
@@ -109,9 +111,9 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
       }
 
       if (theme === "dark") {
-        expect(result.surfaces.sidebar, `${where}: sidebar surface`).toBe("rgb(20, 20, 20)");
-        expect(result.surfaces.main, `${where}: main surface`).toBe("rgb(26, 26, 26)");
-        expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(20, 20, 20)");
+        expect(result.surfaces.sidebar, `${where}: sidebar surface`).toBe("rgb(0, 0, 0)");
+        expect(result.surfaces.main, `${where}: main surface`).toBe("rgb(10, 10, 10)");
+        expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(26, 26, 26)");
       } else {
         expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(247, 247, 247)");
       }
@@ -121,6 +123,7 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
     expect(route.hints.regions.sidebar || 0, `${route.route} page: sidebar hints`).toBeGreaterThanOrEqual(10);
     expect(route.hints.regions.header || 0, `${route.route} page: header hints`).toBeGreaterThanOrEqual(1);
     expect(route.hints.regions.composer || 0, `${route.route} page: composer hints`).toBeGreaterThanOrEqual(1);
+    expect(route.hints.frameOutlines, `${route.route} page: hint mode must not paint a bright frame outline`).toBe(0);
 
     // With the pointer over the sidebar list, j scrolls the list and leaves the thread alone.
     if (route.sidebarScroll) {

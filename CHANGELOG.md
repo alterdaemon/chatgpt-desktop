@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [1.8.0] - 2026-11-27
 
 ### Fixed
+- Changed the Settings shortcut to `Ctrl+,` (comma), with a native window-local accelerator and a ChatGPT Settings menu fallback. Tests now require the actual Settings page rather than only its URL.
+- Settings opens within the current page instead of reloading the website, preserving zoom, custom fonts and injected styling without a resize/font flash.
+- Darkened the example stylesheet: a black sidebar, almost-black chat surface and matching header/footer covers. The composer uses the previous chat surface color for contrast, without an extra border; light mode is unchanged. The focused chat frame no longer gains a bright outline during Vimium-style navigation.
+- Added regression checks that headings, lists, emphasis, inline and fenced code, tables, quotes, and legitimate text fallbacks remain visible with the example stylesheet in both themes.
 - Advertise a browser-compatible user agent so ChatGPT supplies interactive response content instead of a text-only fallback. The actual Chromium version and existing security settings are preserved.
 - Vimium-style link hints now cover the whole application window after ChatGPT's front-end redesign: the sidebar (chat list, navigation and account controls), the conversation header, the conversation and the composer controls. Previously only the main conversation was reachable.
 - `j`, `k`, `d`, `u`, `gg` and `G` now scroll the region you are working in: the scrollable area around the focused element, then the one under the mouse pointer, then the main conversation. The sidebar chat list can now be scrolled from the keyboard by hovering it or focusing one of its entries.
@@ -17,7 +21,8 @@ All notable changes to this project will be documented in this file.
 - The example stylesheet selects the active theme through `html[data-theme]` instead of `html.light` / `html.dark`. If you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules whose targets no longer exist in the site were removed: the message width limit, the composer grid layout and the tighter message spacing.
 
 ### Added
-- `Ctrl+.` opens ChatGPT Settings from the focused app window, including while typing.
+- The sidebar usage indicator shows only the remaining percentage without hovering, while retaining the website's original hover tooltip.
+- `Ctrl+,` opens ChatGPT Settings from the focused app window, including while typing.
 - A live check that audits the signed-in ChatGPT page and fails with the name of the selector that stopped matching when the site changes again.
 - Fixture tests for hints across the sidebar, header, conversation and composer, for scroll-region selection, and for the example stylesheet in both themes.
 

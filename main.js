@@ -13,6 +13,7 @@ const {
   getPermissionDecision,
   isAllowedExternalUrl,
   isApplicationUrl,
+  isChatGPTSettingsShortcut,
   isTrustedNavigationUrl,
   loadScriptManifest,
   normalizeSettings,
@@ -44,6 +45,7 @@ const DEFAULT_SHOW_SHORTCUT = "CommandOrControl+Shift+Space";
 let showShortcut = DEFAULT_SHOW_SHORTCUT;
 const REPO_URL = "https://github.com/alterdaemon/chatgpt-desktop";
 let cachedVimiumNavigationModule = "";
+let cachedSidebarUsageModule = "";
 
 app.commandLine.appendSwitch("disable-smooth-scrolling");
 app.commandLine.appendSwitch("disable-gpu-vsync");
@@ -130,6 +132,19 @@ function loadVimiumNavigationModuleOnce() {
   } catch {
     cachedVimiumNavigationModule = "";
   }
+}
+
+function loadSidebarUsageModuleOnce() {
+  try {
+    cachedSidebarUsageModule = fs.readFileSync(path.join(__dirname, "page-modules/sidebar-usage.js"), "utf8");
+  } catch {
+    cachedSidebarUsageModule = "";
+  }
+}
+
+function applySidebarUsageDisplay(window = mainWindow) {
+  if (!window || window.isDestroyed() || !cachedSidebarUsageModule || !isOnApplicationPage(window)) return;
+  return window.webContents.executeJavaScript(cachedSidebarUsageModule);
 }
 
 function loadSettings() {
@@ -362,6 +377,26 @@ function refreshMainWindow() {
   mainWindow.reload();
 }
 
+function openChatGPTSettings() {
+  if (!isOnApplicationPage()) return;
+  // Use the site's router in the current document. loadURL() would reset zoom
+  // and remove injected styling until the new document finishes loading.
+  mainWindow.webContents.executeJavaScript(`(() => {
+    const target = ${JSON.stringify(new URL("/settings/account", initialUrl).href)};
+    if (location.href === target) return;
+    const state = history.state;
+    history.pushState(state, "", target);
+    window.dispatchEvent(new PopStateEvent("popstate", { state }));
+  })()`).catch(() => {
+    console.error("Failed to open ChatGPT Settings.");
+  });
+}
+
+function updateChatGPTSettingsMenu() {
+  const item = Menu.getApplicationMenu()?.getMenuItemById("chatgpt-settings");
+  if (item) item.enabled = isOnApplicationPage();
+}
+
 function getCurrentZoomFactor() {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return zoomFactor;
@@ -578,6 +613,13 @@ function createAppMenu() {
           click: () => refreshMainWindow(),
         },
         {
+          id: "chatgpt-settings",
+          label: "ChatGPT Settings",
+          accelerator: "Control+,",
+          enabled: isOnApplicationPage(),
+          click: () => openChatGPTSettings(),
+        },
+        {
           label: "Zoom",
           submenu: getZoomSubmenu(),
         },
@@ -754,11 +796,10 @@ function createWindow() {
       return;
     }
 
-    if (input.key === "." && input.control && !input.alt && !input.shift && !input.meta && isOnApplicationPage()) {
+    // Consume repeats as well, so the native accelerator cannot reopen Settings.
+    if (isChatGPTSettingsShortcut({ ...input, isAutoRepeat: false }) && isOnApplicationPage()) {
       event.preventDefault();
-      mainWindow.loadURL(new URL("/settings/account", initialUrl).href).catch((error) => {
-        console.error("Failed to open ChatGPT Settings:", error);
-      });
+      if (!input.isAutoRepeat) openChatGPTSettings();
       return;
     }
 
@@ -836,6 +877,7 @@ function createWindow() {
     applyZoomFactor(zoomFactor);
     await runCustomizationStep("spellcheck", () => applySpellCheckEnabled(mainWindow));
     await runCustomizationStep("Vimium navigation", () => applyVimiumNavigationEnabled(mainWindow));
+    await runCustomizationStep("sidebar usage", () => applySidebarUsageDisplay(mainWindow));
 
     if (cachedCss && isOnApplicationPage()) {
       await runCustomizationStep("custom CSS", () => mainWindow.webContents.insertCSS(cachedCss));
@@ -848,6 +890,7 @@ function createWindow() {
   };
 
   mainWindow.webContents.on("did-finish-load", () => {
+    updateChatGPTSettingsMenu();
     applyCustomizations().catch(() => {
       if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
         mainWindow.show();
@@ -856,10 +899,15 @@ function createWindow() {
   });
 
   mainWindow.webContents.on("did-navigate-in-page", () => {
+    updateChatGPTSettingsMenu();
     applyZoomFactor(zoomFactor);
     runCustomizationStep("Vimium navigation", () => applyVimiumNavigationEnabled(mainWindow));
+    runCustomizationStep("sidebar usage", () => applySidebarUsageDisplay(mainWindow));
     runCustomizationStep("custom scripts", () => injectScripts());
   });
+
+  mainWindow.webContents.on("did-navigate", updateChatGPTSettingsMenu);
+  mainWindow.on("closed", updateChatGPTSettingsMenu);
 
   mainWindow.loadURL(getInitialUrl(process.env));
 }
@@ -871,6 +919,7 @@ app.whenReady().then(() => {
   loadCssOnce();
   loadScriptsOnce();
   loadVimiumNavigationModuleOnce();
+  loadSidebarUsageModuleOnce();
   createAppMenu();
   createWindow();
   createTray();

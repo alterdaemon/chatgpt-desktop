@@ -45,6 +45,7 @@
       "app-logic.js",
       "preload.js",
       "page-modules/vimium-navigation.js",
+      "page-modules/sidebar-usage.js",
       "package.json",
       "build/icons/icon.png"
     ],
