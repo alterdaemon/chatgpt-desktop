@@ -349,3 +349,9 @@ This project is Linux-focused, and support and feature work will stay practical 
 This is an unofficial, community project. It is not affiliated with, endorsed by, or sponsored by OpenAI. "OpenAI" and "ChatGPT" are trademarks of OpenAI.
 
 The app only opens the official ChatGPT website (`https://chatgpt.com`) in a desktop window and does not include or redistribute any OpenAI software. Your use of ChatGPT remains subject to OpenAI's terms and policies.
+
+## License
+
+The source code is released under the MIT License (see `LICENSE`).
+
+The application icon (`build/icons/`) is © 2026 alter.daemon. All rights reserved. It is not covered by the MIT License. It may be redistributed unmodified only as part of this application's packages; any other use requires written permission.

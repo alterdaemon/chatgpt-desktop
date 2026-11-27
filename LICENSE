@@ -20,3 +20,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Exception: the files in build/icons/ (the application icon) are not licensed
+under the terms above. They are Copyright (c) 2026 alter.daemon, all rights
+reserved. They may be redistributed unmodified only as part of this
+application's packages; any other use requires written permission.
