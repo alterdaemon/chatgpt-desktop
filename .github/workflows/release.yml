@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CHATGPT_TRUSTED_RUNNER || '["ubuntu-latest"]') }}
 
     steps:
       - name: Checkout
