@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
 - Vimium hint activation now dispatches a single click to the selected control.
 - Wait for fixture scroll resets to finish before testing Vimium hints, preventing a test-order timing failure.
 - Recognize both the current role-based ChatGPT composer and its legacy ID in live smoke tests and login warm-up.
+- Recognize current assistant responses without mistaking the smoke prompt for a reply.
+- Configure the Electron sandbox helper in Linux CI so live login warm-up can run with sandboxing enabled.
 
 ## [1.5.0] - 2026-03-22
 

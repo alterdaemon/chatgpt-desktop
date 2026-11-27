@@ -1,6 +1,7 @@
 const path = require("path");
 const { test, expect, _electron: electron } = require("@playwright/test");
 const { getLiveComposer } = require("../helpers/live-composer");
+const { getLiveAssistantMessage } = require("../helpers/live-message");
 const {
   ensureAuthenticatedProfile,
   loadCredentials,
@@ -66,7 +67,7 @@ test("signs in and sends a real ChatGPT smoke prompt with production security se
     await composer.fill("Reply with exactly LIVE_SMOKE_OK and no other text.");
     await composer.press("Enter");
 
-    const assistantMessage = page.locator("[data-message-author-role='assistant']").last();
+    const assistantMessage = getLiveAssistantMessage(page);
     await expect(assistantMessage).toContainText("LIVE_SMOKE_OK", { timeout: 120000 });
 
     expect(await page.evaluate(() => typeof process)).toBe("undefined");
