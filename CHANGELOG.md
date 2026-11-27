@@ -5,29 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [1.8.0] - 2026-11-27
 
 ### Fixed
-- The sidebar usage percentage is now event-driven and costs nothing while the page is idle: no timer, no polling, no scroll listener, and streaming replies never wake it. It refreshes only when the usage meter changes, when the sidebar or overlays change, or when the meter is resized. The site's own animated diamond is hidden and its animation stopped while the percentage is shown (covering a pulsing meter still cost CPU). The number follows the site's own usage refresh, about every five minutes, without any timer or request of its own. Its text now uses the sidebar's own font and size (reduced only as far as needed so `100%` still fits), bold, on a backing that matches the sidebar surface, instead of a larger fixed-size label.
-- The sidebar usage percentage now appears without hovering. The site keeps the current value in the usage button's persistent description, while its hover tooltip only contains text while open; the adapter previously waited for that tooltip, so the number showed only during hover. It now reads the persistent value (language-independent, lowest of the shown windows, with the ring's own stroke as a fallback), and a live check verifies it against the real component at idle, during and after hover, and after reload.
-- Fixed the separate transcript focus-ring overlay shown by clicking the chat background and pressing `f`, including with an older custom stylesheet. Modestly lightened the example composer's dark surface to `#242424` without a new border or glow.
-- Changed the Settings shortcut to `Ctrl+,` (comma), with a native window-local accelerator and a ChatGPT Settings menu fallback. Tests now require the actual Settings page rather than only its URL.
-- Settings opens within the current page instead of reloading the website, preserving zoom, custom fonts and injected styling without a resize/font flash.
-- Darkened the example stylesheet: a black sidebar, almost-black chat surface and matching header/footer covers. The composer has a modestly lighter surface for contrast, without an extra border; light mode is unchanged. The focused chat frame no longer gains a bright outline during Vimium-style navigation.
-- Added regression checks that headings, lists, emphasis, inline and fenced code, tables, quotes, and legitimate text fallbacks remain visible with the example stylesheet in both themes.
-- Advertise a browser-compatible user agent so ChatGPT supplies interactive response content instead of a text-only fallback. The actual Chromium version and existing security settings are preserved.
-- Vimium-style link hints now cover the whole application window after ChatGPT's front-end redesign: the sidebar (chat list, navigation and account controls), the conversation header, the conversation and the composer controls. Previously only the main conversation was reachable.
-- `j`, `k`, `d`, `u`, `gg` and `G` now scroll the region you are working in: the scrollable area around the focused element, then the one under the mouse pointer, then the main conversation. The sidebar chat list can now be scrolled from the keyboard by hovering it or focusing one of its entries.
-- `gi` now prefers the message composer over other editable fields.
-- The example stylesheet (`resources/examples/styles/custom.css`) was rewritten for the current ChatGPT site and removes rounded corners again. It zeroes the site's own corner-radius design tokens and adds a small fallback for literal radii; avatars stay circular. It also removes the fade overlays at the top and bottom of the conversation, the edge fades on the composer and the sidebar chat list, and the shadow on the floating scroll button. In the dark theme the solid cover below the composer now matches the chat surface instead of showing as a black band.
-- The example stylesheet hides the "ChatGPT can make mistakes" disclaimer and its reserved space again. The fixed title bar has a solid, theme-matched background only on conversation layouts so scrolled messages do not show through after removing the top fade; Settings keeps its transparent title bar so section headings are not covered.
+- The sidebar usage percentage now shows without hovering and costs nothing while the page is idle (no timer, polling or scroll listener). It uses the sidebar's own font and hides the site's animated meter icon while shown.
+- The app now sends a browser-compatible user agent, so ChatGPT serves interactive responses instead of a text-only fallback.
+- Vimium-style link hints now cover the whole window: sidebar, header, conversation and composer. Hints are collected fresh each time they are opened.
+- `j`, `k`, `d`, `u`, `gg` and `G` scroll the region you are working in (focused area, then the one under the pointer, then the conversation), including the sidebar chat list. `gi` prefers the message composer.
+- Clicking the chat background and pressing `f` no longer draws a focus ring around the conversation.
+- The Settings shortcut is now `Ctrl+,`. Settings opens within the current page, so zoom, fonts and custom styling are kept without a flash.
 
 ### Changed
-- Link hints are collected fresh each time hint mode is entered instead of being cached, so a changed sidebar or menu is never labelled with stale targets.
-- The example stylesheet selects the active theme through `html[data-theme]` instead of `html.light` / `html.dark`. If you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules whose targets no longer exist in the site were removed: the message width limit, the composer grid layout and the tighter message spacing.
-
-### Added
-- The sidebar usage indicator shows only the remaining percentage without hovering, while retaining the website's original hover tooltip.
-- `Ctrl+,` opens ChatGPT Settings from the focused app window, including while typing.
-- A live check that audits the signed-in ChatGPT page and fails with the name of the selector that stopped matching when the site changes again.
-- Fixture tests for hints across the sidebar, header, conversation and composer, for scroll-region selection, and for the example stylesheet in both themes.
+- Rewrote the example stylesheet (`resources/examples/styles/custom.css`) for the current ChatGPT site: no rounded corners, no fade overlays or scroll-button shadow, no "ChatGPT can make mistakes" disclaimer, and a darker dark theme. It selects the theme through `html[data-theme]`, so if you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules for elements the site no longer has were removed.
+- Added tests that formatted replies (headings, lists, code, tables, quotes) stay visible with the example stylesheet.
 
 ## [1.7.0] - 2026-11-27
 
