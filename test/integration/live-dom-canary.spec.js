@@ -1,0 +1,119 @@
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const { spawn } = require("child_process");
+const { test, expect } = require("@playwright/test");
+const {
+  ensureAuthenticatedProfile,
+  loadCredentials,
+  profileEnv,
+  warmLiveProfile,
+} = require("../helpers/warm-live-profile");
+
+// Early warning for site redesigns. It audits the signed-in app with the example stylesheet
+// applied and checks that the anchors we rely on still match, that no non-avatar surface is
+// rounded in either theme, and that Vimium-style hints and scrolling reach the sidebar.
+//
+// The audit runs in a debugger-free Electron process (test/helpers/live-dom-audit-main.js), not
+// through Playwright: a CDP-attached launch is served Cloudflare's challenge page by chatgpt.com
+// itself, while the same profile loads the signed-in app without a debugger. It records structure
+// only and sends no prompt.
+const projectRoot = path.join(__dirname, "..", "..");
+const profileRoot =
+  process.env.CHATGPT_DESKTOP_LIVE_PROFILE || path.join(projectRoot, ".live-chatgpt-profile");
+const exampleCss = path.join(projectRoot, "resources", "examples", "styles", "custom.css");
+
+test.setTimeout(420000);
+
+function runAudit() {
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "chatgpt-desktop-audit-"));
+  const outPath = path.join(workDir, "audit.json");
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(require("electron"), [path.join(projectRoot, "test", "helpers", "live-dom-audit-main.js")], {
+      env: {
+        ...process.env,
+        ...profileEnv(profileRoot),
+        AUDIT_OUT: outPath,
+        AUDIT_CSS: exampleCss,
+        AUDIT_THEMES: "light,dark",
+        AUDIT_CONVERSATION: "1",
+      },
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+
+    const killTimer = setTimeout(() => child.kill("SIGKILL"), 240000);
+    child.on("error", (error) => {
+      clearTimeout(killTimer);
+      reject(error);
+    });
+    child.on("exit", () => {
+      clearTimeout(killTimer);
+      try {
+        const result = JSON.parse(fs.readFileSync(outPath, "utf8"));
+        fs.rmSync(workDir, { recursive: true, force: true });
+        resolve(result);
+      } catch (error) {
+        fs.rmSync(workDir, { recursive: true, force: true });
+        reject(new Error("The DOM audit produced no result."));
+      }
+    });
+  });
+}
+
+test("the signed-in app still matches the stylesheet and Vimium assumptions", async () => {
+  await ensureAuthenticatedProfile(profileRoot);
+
+  let audit = await runAudit();
+
+  // A stored session can expire between runs; re-warm once before failing.
+  if (audit.error) {
+    await warmLiveProfile(profileRoot, loadCredentials());
+    audit = await runAudit();
+  }
+
+  expect(
+    audit.error,
+    "The signed-in app did not render for the audit. A challenge page means a debugger is attached " +
+      "or the stored session is stale, not that the network is blocked."
+  ).toBeUndefined();
+  expect(audit.routes.length).toBeGreaterThan(0);
+
+  for (const route of audit.routes) {
+    for (const [theme, result] of Object.entries(route.themes)) {
+      const where = `${route.route} page, ${theme} theme`;
+
+      expect(result.dataTheme, `${where}: html[data-theme] should report the forced theme`).toBe(theme);
+
+      const missing = Object.entries(result.anchors)
+        .filter(([, count]) => count < 1)
+        .map(([name]) => name);
+      expect(missing, `${where}: anchors that no longer match the site's markup`).toEqual([]);
+
+      expect(
+        result.rounded.groups,
+        `${where}: surfaces that are still rounded with the example stylesheet applied`
+      ).toEqual([]);
+      expect(result.rounded.total).toBe(0);
+
+      if (theme === "dark") {
+        expect(result.surfaces.sidebar, `${where}: sidebar surface`).toBe("rgb(20, 20, 20)");
+        expect(result.surfaces.main, `${where}: main surface`).toBe("rgb(26, 26, 26)");
+        expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(20, 20, 20)");
+      } else {
+        expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(247, 247, 247)");
+      }
+    }
+
+    // Hints must reach the sidebar, the header and the composer, not only the conversation.
+    expect(route.hints.regions.sidebar || 0, `${route.route} page: sidebar hints`).toBeGreaterThanOrEqual(10);
+    expect(route.hints.regions.header || 0, `${route.route} page: header hints`).toBeGreaterThanOrEqual(1);
+    expect(route.hints.regions.composer || 0, `${route.route} page: composer hints`).toBeGreaterThanOrEqual(1);
+
+    // With the pointer over the sidebar list, j scrolls the list and leaves the thread alone.
+    if (route.sidebarScroll) {
+      expect(route.sidebarScroll.sidebarMoved, `${route.route} page: sidebar scroll by pointer`).toBe(true);
+      expect(route.sidebarScroll.threadMoved, `${route.route} page: thread must not move`).toBe(false);
+    }
+  }
+});

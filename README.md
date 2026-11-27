@@ -84,7 +84,7 @@ To override the bundled styling, create a file named `custom.css` here:
 
 The app looks specifically for the filename `custom.css`.
 
-An example stylesheet is available at `resources/examples/styles/custom.css`.
+An example stylesheet is available at `resources/examples/styles/custom.css`. It is a starting point: copy it to the path above to use it. It removes rounded corners, applies a monospace font and flattens the composer, and it follows the active theme through `html[data-theme]`. If you copied an earlier version, copy it again after upgrading, because ChatGPT's markup changed and older rules no longer match.
 
 ## Power-User Scripts
 
@@ -170,13 +170,13 @@ On Flatpak desktops, global shortcut registration depends on desktop portal supp
 
 The app includes Vimium-style navigation keys when focus is not inside an input, textarea, select, or contenteditable editor.
 
-- `j` / `k`: scroll down or up by a small step
+- `j` / `k`: scroll down or up by a small step. Keys act on the scrollable area around the focused element, then the one under the mouse pointer, then the main conversation, so hover the sidebar (or focus one of its entries) to scroll the chat list
 - `h` / `l`: scroll left or right by a small step
 - `d` / `u`: scroll down or up by about half a page
 - `gg` / `G`: jump to the top or bottom of the current scrollable view
 - `gi`: focus the main visible input/editor
-- `f`: show link hints for visible clickable elements across the current ChatGPT conversation UI, including the main thread, sidebar controls, and header actions, and follow the selected target in place
-- `F`: show link hints across the current ChatGPT conversation UI and try to open anchor targets with alternate follow behavior (`window.open`) when available
+- `f`: show link hints for visible clickable elements across the whole window, including the sidebar (chats and navigation), the header, the conversation and the composer controls, and follow the selected target in place
+- `F`: show link hints across the whole window and try to open anchor targets with alternate follow behavior (`window.open`) when available
 - `Esc`: cancel hint mode or leave the active input/editor
 
 These bindings are ignored while you are typing in the ChatGPT prompt or another editable control, so normal text entry is preserved.

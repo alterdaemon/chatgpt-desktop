@@ -16,12 +16,10 @@
   const MAX_HINT_CANDIDATES = 420;
   const KEY_SEQUENCE_TIMEOUT_MS = 1500;
   const MIN_VISIBLE_HINT_SIZE = 6;
-  const CHAT_SCROLL_ROOT_SELECTOR = "[data-scroll-root]";
-  const CHAT_MAIN_ROOT_SELECTOR = "main #thread, main";
-  const CHAT_SIDEBAR_ROOT_SELECTOR = "#stage-slideover-sidebar, nav[aria-label='Chat history']";
-  const CHAT_HEADER_ROOT_SELECTOR = "#page-header";
-  const CHAT_TINY_BAR_SELECTOR = "#stage-sidebar-tiny-bar";
-  const SIDEBAR_HINT_SELECTOR = "[data-sidebar-item='true'], [data-testid='close-sidebar-button'], #sidebar-header a, #sidebar-header button";
+  // Hints and scrolling work from roles, visibility and layout rather than from the identity
+  // of site containers, so a site redesign that renames or moves them cannot remove a region
+  // of the window from navigation.
+  const PRIMARY_INPUT_SELECTOR = "#prompt-textarea, form [role='textbox'][contenteditable='true'], form textarea";
   const INTERACTIVE_SELECTOR = [
     "a[href]",
     "button",
@@ -106,10 +104,8 @@
       return null;
     }
 
-    if (!canInteractWithElement(element)) {
-      return null;
-    }
-
+    // Geometry first: collection now spans the whole document, and most elements in long
+    // lists are off screen, so reject them before the costlier ancestor style walk.
     const rect = element.getBoundingClientRect();
     if (rect.width <= MIN_VISIBLE_HINT_SIZE || rect.height <= MIN_VISIBLE_HINT_SIZE) {
       return null;
@@ -117,6 +113,10 @@
 
     const intersectionArea = getViewportIntersectionArea(rect);
     if (intersectionArea <= 0) {
+      return null;
+    }
+
+    if (!canInteractWithElement(element)) {
       return null;
     }
 
@@ -274,34 +274,59 @@
     return element.scrollHeight - element.clientHeight > 8;
   }
 
-  function pickScrollTarget(axis) {
-    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const ancestry = [];
-
-    for (let current = activeElement; current; current = current.parentElement) {
-      ancestry.push(current);
-    }
-
-    for (const element of ancestry) {
-      if (isScrollable(element, axis)) {
+  function findScrollableAtPoint(x, y, axis) {
+    for (const element of document.elementsFromPoint(x, y)) {
+      if (!isHintOverlayElement(element) && isScrollable(element, axis)) {
         return element;
       }
     }
 
-    const centerX = Math.round(window.innerWidth / 2);
-    const centerY = Math.round(window.innerHeight / 2);
+    return null;
+  }
+
+  // Scroll target, in order: the scrollable region around the focused element, then the
+  // scrollable region under the last known pointer position, then the main conversation
+  // region, then the document. The first match wins and keys never chain to another region,
+  // so a key that cannot scroll the chosen region does not move an unrelated one.
+  function pickScrollTarget(axis, pointer) {
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    for (let current = activeElement; current; current = current.parentElement) {
+      if (isScrollable(current, axis)) {
+        return current;
+      }
+    }
+
+    if (
+      pointer &&
+      pointer.x >= 0 && pointer.y >= 0 &&
+      pointer.x < window.innerWidth && pointer.y < window.innerHeight
+    ) {
+      const underPointer = findScrollableAtPoint(pointer.x, pointer.y, axis);
+      if (underPointer) {
+        return underPointer;
+      }
+    }
+
+    const main = document.querySelector("main");
+    const mainRect = main instanceof HTMLElement ? main.getBoundingClientRect() : null;
+    const hasMainRect = mainRect && mainRect.width > 0 && mainRect.height > 0;
+    const regionLeft = hasMainRect ? Math.max(0, mainRect.left) : 0;
+    const regionRight = hasMainRect ? Math.min(window.innerWidth, mainRect.right) : window.innerWidth;
+    const regionTop = hasMainRect ? Math.max(0, mainRect.top) : 0;
+    const regionBottom = hasMainRect ? Math.min(window.innerHeight, mainRect.bottom) : window.innerHeight;
+    const centerX = Math.round((regionLeft + regionRight) / 2);
+    const regionHeight = regionBottom - regionTop;
     const probePoints = [
-      [centerX, centerY],
-      [centerX, Math.round(window.innerHeight * 0.25)],
-      [centerX, Math.round(window.innerHeight * 0.75)]
+      [centerX, Math.round(regionTop + regionHeight * 0.5)],
+      [centerX, Math.round(regionTop + regionHeight * 0.25)],
+      [centerX, Math.round(regionTop + regionHeight * 0.75)]
     ];
 
     for (const [x, y] of probePoints) {
-      const stack = document.elementsFromPoint(x, y);
-      for (const element of stack) {
-        if (isScrollable(element, axis)) {
-          return element;
-        }
+      const found = findScrollableAtPoint(x, y, axis);
+      if (found) {
+        return found;
       }
     }
 
@@ -318,48 +343,10 @@
     return depth;
   }
 
-  function getMainInteractiveRoot() {
-    for (const element of document.querySelectorAll(CHAT_MAIN_ROOT_SELECTOR)) {
-      if (!(element instanceof HTMLElement)) {
-        continue;
-      }
-
-      const rect = element.getBoundingClientRect();
-      if (getViewportIntersectionArea(rect) > 0 && rect.width > 240 && rect.height > 240) {
-        return element;
-      }
-    }
-
-    return null;
-  }
-
-  function getChatScrollRoot() {
-    const element = document.querySelector(CHAT_SCROLL_ROOT_SELECTOR);
-    return element instanceof HTMLElement ? element : null;
-  }
-
-  function getCachedMainRoot(rootCache) {
-    if (
-      rootCache &&
-      rootCache.width === window.innerWidth &&
-      rootCache.height === window.innerHeight &&
-      rootCache.mainRoot instanceof HTMLElement
-    ) {
-      return rootCache;
-    }
-
-    const mainRoot = getMainInteractiveRoot();
-    const sidebarRoot = document.querySelector(CHAT_SIDEBAR_ROOT_SELECTOR);
-    const headerActionsRoot = document.querySelector(CHAT_HEADER_ROOT_SELECTOR);
-    const tinyBarRoot = document.querySelector(CHAT_TINY_BAR_SELECTOR);
-    return {
-      width: window.innerWidth,
-      height: window.innerHeight,
-      mainRoot,
-      sidebarRoot: sidebarRoot instanceof HTMLElement ? sidebarRoot : null,
-      headerActionsRoot: headerActionsRoot instanceof HTMLElement ? headerActionsRoot : null,
-      tinyBarRoot: tinyBarRoot instanceof HTMLElement ? tinyBarRoot : null
-    };
+  // The whole document is the hint root. Occlusion resolution in pickHintTargetElement keeps
+  // page elements that sit under an open menu, popover or dialog out of the hint set.
+  function getHintRoot() {
+    return document.body instanceof HTMLElement ? document.body : null;
   }
 
   function collectInteractiveElements(root, selector) {
@@ -372,8 +359,8 @@
       : Array.from(root.querySelectorAll(selector));
   }
 
-  function pickHintTargetElement(element, mainRoot) {
-    if (!(element instanceof HTMLElement) || !(mainRoot instanceof HTMLElement)) {
+  function pickHintTargetElement(element, root) {
+    if (!(element instanceof HTMLElement) || !(root instanceof HTMLElement)) {
       return null;
     }
 
@@ -383,7 +370,7 @@
     }
 
     const resolvedElement = resolveVisibleInteractiveElement(metrics.rect);
-    if (!(resolvedElement instanceof HTMLElement) || !mainRoot.contains(resolvedElement) || !areRelatedInteractiveElements(element, resolvedElement)) {
+    if (!(resolvedElement instanceof HTMLElement) || !root.contains(resolvedElement) || !areRelatedInteractiveElements(element, resolvedElement)) {
       return null;
     }
 
@@ -428,18 +415,12 @@
     return scoredCandidates;
   }
 
-  function getHintCandidates(rootCache) {
-    if (!rootCache || !(rootCache.mainRoot instanceof HTMLElement)) {
+  function getHintCandidates(root) {
+    if (!(root instanceof HTMLElement)) {
       return [];
     }
 
-    const seen = new Set();
-    const scoredCandidates = [
-      ...collectHintCandidatesFromRoot(rootCache.mainRoot, INTERACTIVE_SELECTOR, seen),
-      ...collectHintCandidatesFromRoot(rootCache.headerActionsRoot, INTERACTIVE_SELECTOR, seen),
-      ...collectHintCandidatesFromRoot(rootCache.sidebarRoot, SIDEBAR_HINT_SELECTOR, seen),
-      ...collectHintCandidatesFromRoot(rootCache.tinyBarRoot, "button[aria-controls='stage-slideover-sidebar']", seen)
-    ];
+    const scoredCandidates = collectHintCandidatesFromRoot(root, INTERACTIVE_SELECTOR, new Set());
 
     scoredCandidates.sort((left, right) => {
       if (left.rect.top !== right.rect.top) {
@@ -599,35 +580,26 @@
       this.hintMode = null;
       this.overlay = null;
       this.hints = [];
-      this.hintCandidateCache = null;
-      this.mainRootCache = null;
       this.hintRefreshFrame = null;
       this.hintMutationObserver = null;
       this.hintLayoutDirty = false;
       this.pendingSequence = "";
       this.pendingSequenceTimer = null;
-      this.boundViewportChange = (event) => {
-        const chatScrollRoot = getChatScrollRoot();
-        const target = event && event.target;
-        if (event && event.type === "scroll" && chatScrollRoot instanceof HTMLElement && target instanceof Node && target !== chatScrollRoot && !chatScrollRoot.contains(target)) {
-          return;
-        }
-
-        this.clearHintCandidateCache();
+      // Last known pointer position, used to choose which scrollable region keys act on.
+      this.pointer = null;
+      this.boundPointerMove = (event) => {
+        this.pointer = { x: event.clientX, y: event.clientY };
       };
       this.boundKeydown = (event) => this.handleKeydown(event);
       this.boundPageCleanup = () => {
-        this.clearHintCandidateCache();
         this.exitHintMode();
       };
       this.boundVisibilityCleanup = () => {
         if (document.hidden) {
-          this.clearHintCandidateCache();
           this.exitHintMode();
         }
       };
       this.boundHintModeCleanup = () => {
-        this.clearHintCandidateCache();
         this.exitHintMode();
       };
       this.boundRouteCleanup = () => {
@@ -635,7 +607,6 @@
           return;
         }
 
-        this.clearHintCandidateCache();
         this.exitHintMode();
       };
     }
@@ -647,9 +618,7 @@
 
       this.enabled = true;
       window.addEventListener("keydown", this.boundKeydown, true);
-      window.addEventListener("scroll", this.boundViewportChange, true);
-      window.addEventListener("resize", this.boundViewportChange, true);
-      document.addEventListener("mousedown", this.boundViewportChange, true);
+      window.addEventListener("mousemove", this.boundPointerMove, { capture: true, passive: true });
       window.addEventListener("pagehide", this.boundPageCleanup);
       window.addEventListener("blur", this.boundVisibilityCleanup);
       document.addEventListener("visibilitychange", this.boundVisibilityCleanup);
@@ -665,9 +634,8 @@
 
       this.enabled = false;
       window.removeEventListener("keydown", this.boundKeydown, true);
-      window.removeEventListener("scroll", this.boundViewportChange, true);
-      window.removeEventListener("resize", this.boundViewportChange, true);
-      document.removeEventListener("mousedown", this.boundViewportChange, true);
+      window.removeEventListener("mousemove", this.boundPointerMove, { capture: true });
+      this.pointer = null;
       window.removeEventListener("pagehide", this.boundPageCleanup);
       window.removeEventListener("blur", this.boundVisibilityCleanup);
       document.removeEventListener("visibilitychange", this.boundVisibilityCleanup);
@@ -675,7 +643,6 @@
       window.removeEventListener("hashchange", this.boundRouteCleanup);
       this.restoreHistory();
       this.exitHintMode();
-      this.clearHintCandidateCache();
       this.clearPendingSequence();
     }
 
@@ -684,7 +651,7 @@
       window.addEventListener("scroll", this.boundHintModeCleanup, true);
       document.addEventListener("mousedown", this.boundHintModeCleanup, true);
 
-      const observedRoot = this.hintMode && this.hintMode.mainRoot;
+      const observedRoot = this.hintMode && this.hintMode.root;
       if (typeof MutationObserver === "function" && observedRoot instanceof HTMLElement) {
         this.hintMutationObserver = new MutationObserver(() => {
           this.markHintLayoutDirty();
@@ -730,7 +697,6 @@
         history[methodName] = (...args) => {
           const result = original.apply(history, args);
           if (this.enabled) {
-            this.clearHintCandidateCache();
             this.exitHintMode();
           }
           return result;
@@ -905,11 +871,6 @@
       }
     }
 
-    clearHintCandidateCache() {
-      this.hintCandidateCache = null;
-      this.mainRootCache = null;
-    }
-
     markHintLayoutDirty() {
       if (!this.hintMode) {
         return;
@@ -917,27 +878,6 @@
 
       this.hintLayoutDirty = true;
       this.scheduleHintRefresh();
-    }
-
-    getCachedHintCandidates() {
-      const cache = this.hintCandidateCache;
-      if (
-        cache &&
-        cache.width === window.innerWidth &&
-        cache.height === window.innerHeight &&
-        cache.candidates.length > 0
-      ) {
-        return cache.candidates;
-      }
-
-      this.mainRootCache = getCachedMainRoot(this.mainRootCache);
-      const candidates = getHintCandidates(this.mainRootCache);
-      this.hintCandidateCache = {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        candidates
-      };
-      return candidates;
     }
 
     scheduleHintRefresh() {
@@ -962,14 +902,14 @@
         return;
       }
 
-      const mainRoot = this.hintMode.mainRoot;
-      if (!(mainRoot instanceof HTMLElement)) {
+      const root = this.hintMode.root;
+      if (!(root instanceof HTMLElement)) {
         this.exitHintMode();
         return;
       }
 
       for (const hint of this.hints) {
-        const candidate = pickHintTargetElement(hint.element, hint.root instanceof HTMLElement ? hint.root : mainRoot);
+        const candidate = pickHintTargetElement(hint.element, hint.root instanceof HTMLElement ? hint.root : root);
         hint.rect = candidate ? candidate.rect : null;
       }
 
@@ -1038,8 +978,8 @@
       event.preventDefault();
       event.stopPropagation();
 
-      const verticalTarget = top !== 0 ? pickScrollTarget("y") : null;
-      const horizontalTarget = left !== 0 ? pickScrollTarget("x") : null;
+      const verticalTarget = top !== 0 ? pickScrollTarget("y", this.pointer) : null;
+      const horizontalTarget = left !== 0 ? pickScrollTarget("x", this.pointer) : null;
       const target = verticalTarget || horizontalTarget;
 
       if (target && typeof target.scrollBy === "function") {
@@ -1051,7 +991,7 @@
     }
 
     scrollToEdge(edge) {
-      const target = pickScrollTarget("y");
+      const target = pickScrollTarget("y", this.pointer);
       const top = edge === "top" ? 0 : target.scrollHeight;
 
       if (target && typeof target.scrollTo === "function") {
@@ -1071,10 +1011,13 @@
         return;
       }
 
-      const promptTextarea = document.getElementById("prompt-textarea");
-      if (promptTextarea instanceof HTMLElement && isVisible(promptTextarea) && typeof promptTextarea.focus === "function") {
-        promptTextarea.focus({ preventScroll: false });
-        return;
+      // Prefer the message composer over other editable fields (a search box in the sidebar
+      // would otherwise win by sitting higher on the page).
+      for (const composerInput of document.querySelectorAll(PRIMARY_INPUT_SELECTOR)) {
+        if (composerInput instanceof HTMLElement && isVisible(composerInput) && typeof composerInput.focus === "function") {
+          composerInput.focus({ preventScroll: false });
+          return;
+        }
       }
 
       const candidates = Array.from(document.querySelectorAll(EDITABLE_SELECTOR)).filter((element) => isVisible(element));
@@ -1107,7 +1050,10 @@
     }
 
     enterHintMode(alternate) {
-      const candidates = this.getCachedHintCandidates();
+      // Collected fresh on every entry: a cache would go stale when the sidebar, a menu or the
+      // thread changes without a scroll, and it would then label elements that are gone.
+      const root = getHintRoot();
+      const candidates = getHintCandidates(root);
       if (candidates.length === 0) {
         return;
       }
@@ -1116,7 +1062,7 @@
       this.hintMode = {
         alternate,
         input: "",
-        mainRoot: this.mainRootCache && this.mainRootCache.mainRoot instanceof HTMLElement ? this.mainRootCache.mainRoot : null
+        root
       };
       this.hintLayoutDirty = false;
       this.attachHintModeListeners();

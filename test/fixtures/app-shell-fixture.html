@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <title>ChatGPT Desktop App Shell Fixture</title>
+    <!--
+      Mirrors the structure of the signed-in ChatGPT app (sidebar with its own scroller, a header
+      inside main, a scrolling thread, a composer form) and the way it derives corner radii from
+      custom properties on the root plus a few literal radii. Contains no real content.
+    -->
+    <style>
+      :root {
+        --radius-lg: 0.5rem;
+        --radius-xl: 0.75rem;
+        --radius-full: 9999px;
+        --control-radius-md: 0.5rem;
+        --menu-radius: 1rem;
+        --popover-radius: 1rem;
+        --composer-radius: 1.75rem;
+        --avatar-radius: 9999px;
+      }
+      body { margin: 0; font-family: sans-serif; background: rgb(252, 252, 252); }
+      #root { display: flex; height: 100vh; }
+      aside#app-shell-sidebar { width: 300px; display: flex; flex-direction: column; }
+      #sidebar-search { margin: 8px; height: 28px; border-radius: var(--control-radius-md); }
+      [data-app-action-sidebar-scroll] { flex: 1; overflow-y: auto; }
+      .row { height: 36px; display: flex; align-items: center; padding: 0 8px; border-radius: var(--radius-lg); }
+      .row a { display: block; width: 100%; }
+      .pill { border-radius: 9999px; }
+      .avatar { border-radius: var(--avatar-radius); }
+      #account { margin: 8px; height: 40px; display: flex; align-items: center; gap: 8px; }
+      main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+      header { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+      header button { height: 32px; }
+      [data-app-action-timeline-scroll] { flex: 1; overflow-y: auto; padding: 16px; }
+      [data-user-message-bubble] { display: inline-block; padding: 8px 12px; border-radius: 19.25px; background: #eee; }
+      .turn { margin: 12px 0; }
+      #filler { height: 3000px; }
+      form[data-chatgpt-composer] { padding: 12px; }
+      form[data-chatgpt-composer] > div { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--composer-radius); background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
+      #composer-input { flex: 1; min-height: 24px; outline: 1px solid #99c; }
+      #send, #voice { width: 36px; height: 36px; border-radius: var(--radius-full); }
+      #menu { margin: 0; padding: 4px; border-radius: var(--popover-radius); }
+      #menu [role="menuitem"] { display: block; width: 100%; border-radius: var(--radius-xl); }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <aside id="app-shell-sidebar">
+        <input id="sidebar-search" type="search" aria-label="Search chats">
+        <nav aria-label="Chat history" style="display: contents">
+          <div data-app-action-sidebar-scroll>
+            <!-- rows are filled by the script below -->
+          </div>
+        </nav>
+        <div id="account">
+          <button id="account-button" class="pill" type="button" aria-label="Account">
+            <img class="avatar" width="24" height="24" alt=""
+              src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23888'/%3E%3C/svg%3E">
+          </button>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <button id="header-share" class="pill" type="button">Share</button>
+          <button id="header-menu" type="button" aria-haspopup="menu">More</button>
+        </header>
+        <div data-app-action-timeline-scroll role="region">
+          <div class="turn">
+            <h4 data-conversation-role="user" style="position: absolute; width: 1px; height: 1px; overflow: hidden">You said</h4>
+            <div data-user-message-bubble="true">Fixture question</div>
+          </div>
+          <div class="turn">
+            <h4 data-conversation-role="assistant" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Assistant said</h4>
+            <div data-markdown-text-style="assistant-message">Fixture answer</div>
+            <button id="thread-btn-1" type="button">Copy</button>
+            <button id="thread-btn-2" type="button">Good</button>
+          </div>
+          <div id="filler"></div>
+        </div>
+        <form data-chatgpt-composer>
+          <div>
+            <div id="composer-input" contenteditable="true" role="textbox" aria-label="Message">composer</div>
+            <button id="voice" type="button" aria-label="Voice">V</button>
+            <button id="send" type="button" aria-label="Send">S</button>
+          </div>
+        </form>
+      </main>
+      <div id="menu" popover role="menu">
+        <button type="button" role="menuitem">First</button>
+        <button type="button" role="menuitem">Second</button>
+        <button type="button" role="menuitem">Third</button>
+      </div>
+    </div>
+    <script>
+      const list = document.querySelector("[data-app-action-sidebar-scroll]");
+      for (let index = 1; index <= 40; index += 1) {
+        const row = document.createElement("div");
+        row.setAttribute("role", "group");
+        row.className = "row";
+        const link = document.createElement("a");
+        link.href = "#chat-" + index;
+        link.id = "sidebar-link-" + index;
+        link.textContent = "Chat " + index;
+        link.addEventListener("click", (event) => event.preventDefault());
+        row.appendChild(link);
+        list.appendChild(row);
+      }
+    </script>
+  </body>
+</html>
