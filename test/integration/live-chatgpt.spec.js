@@ -1,5 +1,6 @@
 const path = require("path");
 const { test, expect, _electron: electron } = require("@playwright/test");
+const { getLiveComposer } = require("../helpers/live-composer");
 const {
   ensureAuthenticatedProfile,
   loadCredentials,
@@ -30,7 +31,7 @@ async function openSignedInApp() {
   const page = await app.firstWindow();
   await page.waitForURL(/^https:\/\/chatgpt\.com\//, { timeout: 30000 });
 
-  const composer = page.locator("#prompt-textarea");
+  const composer = getLiveComposer(page);
   const ready = await composer
     .waitFor({ state: "visible", timeout: 45000 })
     .then(() => true)

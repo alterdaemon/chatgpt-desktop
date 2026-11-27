@@ -13,6 +13,7 @@
 // Playwright run launches the real app already authenticated.
 const path = require("path");
 const { app, BrowserWindow } = require("electron");
+const { COMPOSER_SELECTOR } = require("./live-composer");
 
 // This runs as a bare script, so Electron would default the app name to
 // "Electron" and use a different userData directory than the real app. Mirror
@@ -36,7 +37,7 @@ function probe(wc) {
         host: location.host,
         email: !!document.querySelector("input[type='email']"),
         password: !!document.querySelector("input[type='password']"),
-        composer: !!document.querySelector("#prompt-textarea")
+        composer: !!document.querySelector(${JSON.stringify(COMPOSER_SELECTOR)})
       }))()`,
       true
     )
