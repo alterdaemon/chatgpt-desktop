@@ -36,6 +36,8 @@ function probe(wc) {
     .executeJavaScript(
       `(() => ({
         host: location.host,
+        title: document.title,
+        challenge: /just a moment|verify you are human|checking your browser/i.test(document.body?.innerText || ""),
         email: !!document.querySelector("input[type='email']"),
         password: !!document.querySelector("input[type='password']"),
         composer: !!document.querySelector(${JSON.stringify(COMPOSER_SELECTOR)})
@@ -172,6 +174,7 @@ app.whenReady().then(async () => {
     app.exit(0);
   } catch (error) {
     console.error("warm-login: " + (error && error.message ? error.message : String(error)));
+    console.error("warm-login: page state " + JSON.stringify(await probe(win.webContents)));
     app.exit(1);
   }
 });
