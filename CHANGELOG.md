@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - `npm run build:diagnostic` builds an isolated diagnostic Flatpak for investigating rendering problems. It is not part of the shipped app.
 
 ### Changed
+- New original application icon in every size, replacing the previous artwork. The Flatpak launcher icon used to be a different design from the other icons; all packages now share one.
 - `gi` prefers the message composer over other editable fields.
 - Link hints are collected fresh each time hint mode is entered, so a changed sidebar or menu is never labelled with stale targets.
 - Rewrote the example stylesheet (`resources/examples/styles/custom.css`) for the current ChatGPT site. It removes rounded corners (avatars stay circular), the fade overlays on the conversation, composer and sidebar chat list, and the scroll-button shadow. It hides the "ChatGPT can make mistakes" disclaimer and its space, gives the dark theme a black sidebar and near-black chat surface with a slightly lighter composer, and keeps the title bar opaque on conversations only.

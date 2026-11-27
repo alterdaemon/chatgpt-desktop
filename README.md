@@ -1,4 +1,6 @@
-# ChatGPT Desktop for Linux (Unofficial)
+# ChatGPT Desktop (Unofficial)
+
+**The lightweight Linux desktop app for ChatGPT.**
 
 > [!NOTE]
 > **Why this project is still alive.**
@@ -11,8 +13,6 @@
 > neither the official app nor the community versions cover that. So I'm
 > keeping this a thin wrapper around chatgpt.com, and I'll keep
 > maintaining it. **More features are coming.**
-
-A Linux desktop app for ChatGPT built to make the web app feel faster, cleaner, and far more usable as a real daily tool.
 
 What started as a simple Electron wrapper has evolved into a focused desktop shell for ChatGPT: better windowing behavior, tray integration, persistent settings, keyboard-driven navigation, zoom controls, and power-user customization that smooth out rough edges in the browser experience.
 
@@ -316,7 +316,7 @@ Flatpak-specific behavior notes:
 
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.7.0`) triggers the GitHub Actions release workflow, runs the test suites, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.8.0`) triggers the GitHub Actions release workflow, runs the test suites, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 That workflow currently publishes the release-oriented `.flatpak` bundle; the Flathub packaging track is maintained separately in-repo for source-build validation and submission work.
 
@@ -328,10 +328,10 @@ The workflow runs tests, builds packages and publishes the release as three sepa
 
 ```bash
 git add .
-git commit -m "release: publish chatgpt-desktop v1.7.0"
-git tag v1.7.0
+git commit -m "release: publish chatgpt-desktop vX.Y.Z"
+git tag vX.Y.Z
 git push origin main
-git push origin v1.7.0
+git push origin vX.Y.Z
 ```
 
 The tag push is what triggers the release workflow.
@@ -352,6 +352,6 @@ The app only opens the official ChatGPT website (`https://chatgpt.com`) in a des
 
 ## License
 
-The source code is released under the MIT License (see `LICENSE`).
+The source code is released under the [MIT License](LICENSE).
 
-The application icon (`build/icons/`) is © 2026 alter.daemon. All rights reserved. It is not covered by the MIT License. It may be redistributed unmodified only as part of this application's packages; any other use requires written permission.
+The application icon (`build/icons/`) is © 2026 alter.daemon. All rights reserved. It is not covered by the MIT License; see [build/icons/LICENSE](build/icons/LICENSE). It may be redistributed unmodified only as part of this application's packages; any other use requires written permission.
