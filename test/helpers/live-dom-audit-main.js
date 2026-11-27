@@ -78,6 +78,38 @@ function auditPage(anchors, withCss) {
   }
   out.rounded = { total, groups: Array.from(groups.entries()).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, n]) => n + "x " + k) };
 
+  // Wide fade and shadow layers (gradient fills, masks, blurred shadows) on elements or their
+  // pseudo-elements. Only layers at least 200px wide are considered, which leaves out the small
+  // horizontal text-truncation masks and the shadows of small controls.
+  const fadeLayers = [];
+  const blurredShadow = /\)\s+-?[\d.]+px\s+-?[\d.]+px\s+([1-9][\d.]*)px/;
+  const considerLayer = (el, pseudo) => {
+    const cs = getComputedStyle(el, pseudo || null);
+    if (pseudo && (cs.content === "none" || cs.content === "normal")) return;
+    if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return;
+    const r = el.getBoundingClientRect();
+    const wide = pseudo ? parseFloat(cs.width) >= 200 : r.width >= 200;
+    if (!wide || r.height < 4) return;
+    const kinds = [];
+    if (/gradient/.test(cs.backgroundImage)) kinds.push("gradient");
+    const maskValue = cs.maskImage !== "none" ? cs.maskImage : cs.webkitMaskImage;
+    // A short horizontal mask is a text-truncation fade (sidebar titles), not a layer over content.
+    const truncationMask = /to (right|left)/.test(maskValue) && r.height <= 40;
+    if (maskValue !== "none" && !truncationMask) kinds.push("mask");
+    if (blurredShadow.test(cs.boxShadow)) kinds.push("shadow");
+    if (cs.backdropFilter !== "none") kinds.push("backdrop-blur");
+    if (!kinds.length) return;
+    const slot = el.getAttribute("data-app-action-timeline-scroll") !== null ? "[timeline-scroll]" : "";
+    fadeLayers.push(el.tagName.toLowerCase() + (pseudo || "") + slot + " " + kinds.join("+") + " in " + (landmark(el) || "body") +
+      " [" + Math.round(r.left) + "," + Math.round(r.top) + " " + Math.round(r.width) + "x" + Math.round(r.height) + "]");
+  };
+  for (const el of document.querySelectorAll("#root *")) {
+    considerLayer(el);
+    considerLayer(el, "::before");
+    considerLayer(el, "::after");
+  }
+  out.fadeLayers = fadeLayers.slice(0, 20);
+
   // Interactive elements in the sidebar, for comparison with the hint run.
   const interactive = "a[href],button,summary,[role='button'],[role='link'],[role='menuitem']";
   const sidebar = document.querySelector("#app-shell-sidebar");
@@ -99,6 +131,15 @@ function auditPage(anchors, withCss) {
     sidebar: bg("#app-shell-sidebar"),
     main: bg("main"),
     composer: bg("form[data-chatgpt-composer] > div"),
+    // The solid cover the site paints below the composer; it must match the chat surface or it
+    // shows as a band. Null when the page has no thread footer (new-chat page).
+    footerCover: (() => {
+      const footer = document.querySelector("[data-thread-scroll-footer]");
+      const wrapper = footer && footer.parentElement;
+      if (!wrapper) return null;
+      const cover = getComputedStyle(wrapper, "::after");
+      return cover.content === "none" || cover.content === "normal" ? null : cover.backgroundColor;
+    })(),
   };
   out.withCss = withCss;
   return out;

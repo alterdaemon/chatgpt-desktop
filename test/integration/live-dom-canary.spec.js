@@ -96,6 +96,18 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
       ).toEqual([]);
       expect(result.rounded.total).toBe(0);
 
+      expect(
+        result.fadeLayers,
+        `${where}: wide fade or shadow layers still painted with the example stylesheet applied`
+      ).toEqual([]);
+
+      if (result.surfaces.footerCover !== null) {
+        expect(
+          result.surfaces.footerCover,
+          `${where}: the cover below the composer should match the chat surface, otherwise it shows as a band`
+        ).toBe(result.surfaces.main);
+      }
+
       if (theme === "dark") {
         expect(result.surfaces.sidebar, `${where}: sidebar surface`).toBe("rgb(20, 20, 20)");
         expect(result.surfaces.main, `${where}: main surface`).toBe("rgb(26, 26, 26)");

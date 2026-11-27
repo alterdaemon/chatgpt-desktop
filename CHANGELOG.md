@@ -8,11 +8,12 @@ All notable changes to this project will be documented in this file.
 - Vimium-style link hints now cover the whole application window after ChatGPT's front-end redesign: the sidebar (chat list, navigation and account controls), the conversation header, the conversation and the composer controls. Previously only the main conversation was reachable.
 - `j`, `k`, `d`, `u`, `gg` and `G` now scroll the region you are working in: the scrollable area around the focused element, then the one under the mouse pointer, then the main conversation. The sidebar chat list can now be scrolled from the keyboard by hovering it or focusing one of its entries.
 - `gi` now prefers the message composer over other editable fields.
-- The example stylesheet (`resources/examples/styles/custom.css`) was rewritten for the current ChatGPT site and removes rounded corners again. It zeroes the site's own corner-radius design tokens and adds a small fallback for literal radii; avatars stay circular.
+- The example stylesheet (`resources/examples/styles/custom.css`) was rewritten for the current ChatGPT site and removes rounded corners again. It zeroes the site's own corner-radius design tokens and adds a small fallback for literal radii; avatars stay circular. It also removes the fade overlays at the top and bottom of the conversation, the edge fades on the composer and the sidebar chat list, and the shadow on the floating scroll button. In the dark theme the solid cover below the composer now matches the chat surface instead of showing as a black band.
+- The example stylesheet hides the "ChatGPT can make mistakes" disclaimer and its reserved space again. The fixed conversation title bar has a solid, theme-matched background so scrolled messages do not show through after removing the top fade.
 
 ### Changed
 - Link hints are collected fresh each time hint mode is entered instead of being cached, so a changed sidebar or menu is never labelled with stale targets.
-- The example stylesheet selects the active theme through `html[data-theme]` instead of `html.light` / `html.dark`. If you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules whose targets no longer exist in the site were removed: the message width limit, the hidden disclaimer row, the composer grid layout, the bottom fade overlays and the tighter message spacing.
+- The example stylesheet selects the active theme through `html[data-theme]` instead of `html.light` / `html.dark`. If you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules whose targets no longer exist in the site were removed: the message width limit, the composer grid layout and the tighter message spacing.
 
 ### Added
 - A live check that audits the signed-in ChatGPT page and fails with the name of the selector that stopped matching when the site changes again.

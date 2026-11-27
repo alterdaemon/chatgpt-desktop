@@ -5,8 +5,8 @@
  * It targets the signed-in ChatGPT app as of November 2026 (see CHANGELOG.md for what changed).
  *
  * Selectors here use landmarks, roles, `data-*` attributes and the site's own design tokens.
- * Generated ids (`_R_...`, `radix-...`) and utility class names are never matched, because the
- * site regenerates them.
+ * Generated ids (`_R_...`, `radix-...`) are never matched. The disclaimer's visibility-property
+ * utility is the only class selector: the site provides no dedicated attribute on that row.
  */
 
 /* terminal typography */
@@ -134,10 +134,66 @@ form[data-chatgpt-composer] * {
     -webkit-backdrop-filter: none !important;
 }
 
+/* flat interface: no fade overlays at the top and bottom of the conversation.
+   Top: a decorative (aria-hidden) gradient layer under the header.
+   Bottom: a gradient painted by the footer wrapper that holds the composer area. */
+[data-app-shell-main-content-layout] div[aria-hidden="true"] {
+    background-image: none !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+}
+
+[data-app-action-timeline-scroll] > :has(> [data-thread-scroll-footer])::before,
+[data-app-action-timeline-scroll] > :has(> [data-thread-scroll-footer])::after {
+    background-image: none !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+    box-shadow: none !important;
+}
+
+/* The footer wrapper also paints a solid cover below the composer so scrolled text cannot show
+   through. Keep the cover and match it to the dark surface set below; left as the site's own black
+   it shows as a band under the composer. The light theme already matches. */
+html[data-theme="dark"] [data-app-action-timeline-scroll] > :has(> [data-thread-scroll-footer])::after {
+    background-color: #1a1a1a !important;
+}
+
+/* flat interface: no edge fade inside the composer. Only divs are cleared, because the icons on
+   its buttons are drawn with masks. */
+form[data-chatgpt-composer] div {
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+}
+
+/* flat interface: no edge fade on the sidebar chat list, no shadow on floating buttons */
+[data-app-action-sidebar-scroll] {
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+}
+
+main button,
+main button * {
+    box-shadow: none !important;
+}
+
 /* composer input: no focus ring, no scrollbar */
 form[data-chatgpt-composer] [role="textbox"] {
     outline: none !important;
     scrollbar-width: none !important;
+}
+
+/* Hide only the disclaimer row, including its reserved space, without matching translated text. */
+[data-app-action-timeline-scroll] [class*="visibility:var(--thread-composer-disclaimer-visibility"] {
+    display: none !important;
+}
+
+/* With the top fade removed, the fixed title bar needs a solid fill to cover scrolled text. */
+html[data-theme="light"] main header [data-app-shell-main-titlebar] {
+    background-color: #fcfcfc !important;
+}
+
+html[data-theme="dark"] main header [data-app-shell-main-titlebar] {
+    background-color: #1a1a1a !important;
 }
 
 /* avoid smooth scroll jank during streamed output */

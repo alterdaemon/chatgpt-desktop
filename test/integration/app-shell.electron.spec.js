@@ -73,6 +73,119 @@ test.describe("example stylesheet", () => {
     }
   });
 
+  test("removes the fade overlays at the top and bottom of the conversation", async () => {
+    const layers = (page) =>
+      page.evaluate(() => {
+        const bg = (selector, pseudo) => getComputedStyle(document.querySelector(selector), pseudo).backgroundImage;
+        const mask = (selector) => {
+          const style = getComputedStyle(document.querySelector(selector));
+          return style.maskImage !== "none" ? style.maskImage : style.webkitMaskImage;
+        };
+        return {
+          top: bg("#top-fade"),
+          bottom: bg("#footer-wrap", "::before"),
+          sidebar: mask("[data-app-action-sidebar-scroll]"),
+          composer: mask("#composer-row"),
+        };
+      });
+
+    // Control: without the stylesheet every layer is painted.
+    const plain = await launch(undefined);
+    try {
+      const before = await layers(plain.page);
+      expect(before.top).toContain("gradient");
+      expect(before.bottom).toContain("gradient");
+      expect(before.sidebar).toContain("gradient");
+      expect(before.composer).toContain("gradient");
+    } finally {
+      await plain.close();
+    }
+
+    const styled = await launch(exampleCss);
+    try {
+      expect(await layers(styled.page)).toEqual({ top: "none", bottom: "none", sidebar: "none", composer: "none" });
+    } finally {
+      await styled.close();
+    }
+  });
+
+  test("keeps the cover below the composer in step with the dark surface", async () => {
+    const cover = (page) =>
+      page.evaluate(() => ({
+        cover: getComputedStyle(document.querySelector("#footer-wrap"), "::after").backgroundColor,
+        main: getComputedStyle(document.querySelector("main")).backgroundColor,
+      }));
+
+    // Control: unstyled, the cover is the site's black and does not match the dark surface.
+    const plain = await launch(undefined);
+    try {
+      await plain.page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+      expect((await cover(plain.page)).cover).toBe("rgb(0, 0, 0)");
+    } finally {
+      await plain.close();
+    }
+
+    const styled = await launch(exampleCss);
+    try {
+      await styled.page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+      const dark = await cover(styled.page);
+      expect(dark.cover).toBe(dark.main);
+
+      // The cover stays a solid fill, so scrolled text cannot show through below the composer.
+      expect(dark.cover).not.toBe("rgba(0, 0, 0, 0)");
+    } finally {
+      await styled.close();
+    }
+  });
+
+  test("hides the disclaimer without reserving space or hiding the thread footer", async () => {
+    const selector = '[class*="visibility:var(--thread-composer-disclaimer-visibility"]';
+    const plain = await launch(undefined);
+    try {
+      await expect(plain.page.locator(selector)).toBeVisible();
+    } finally {
+      await plain.close();
+    }
+
+    const styled = await launch(exampleCss);
+    try {
+      await expect(styled.page.locator(selector)).toHaveCSS("display", "none");
+      expect(await styled.page.locator(selector).evaluate((el) => el.getBoundingClientRect().height)).toBe(0);
+      await expect(styled.page.locator("#footer-wrap")).not.toHaveCSS("display", "none");
+    } finally {
+      await styled.close();
+    }
+  });
+
+  test("keeps the title bar opaque over a scrolling thread without restoring the fade", async () => {
+    const plain = await launch(undefined);
+    try {
+      await expect(plain.page.locator("[data-app-shell-main-titlebar]")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    } finally {
+      await plain.close();
+    }
+
+    const styled = await launch(exampleCss);
+    const { page } = styled;
+    try {
+      // Reproduce the site's fixed transparent header over the thread.
+      await page.locator("main header").evaluate((el) => {
+        Object.assign(el.style, { position: "fixed", left: "300px", right: "0", top: "0", zIndex: "30" });
+      });
+      for (const [theme, color] of [["light", "rgb(252, 252, 252)"], ["dark", "rgb(26, 26, 26)"]]) {
+        await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+        const titlebar = page.locator("[data-app-shell-main-titlebar]");
+        const before = await titlebar.boundingBox();
+        await page.locator("[data-app-action-timeline-scroll]").evaluate((el) => { el.scrollTop += 200; });
+        expect(await titlebar.boundingBox()).toEqual(before);
+        await expect(titlebar).toHaveCSS("background-color", color);
+        await expect(page.locator("#top-fade")).toHaveCSS("background-image", "none");
+      }
+    } finally {
+      await styled.close();
+    }
+  });
+
   test("squares transient surfaces such as an open menu", async () => {
     const session = await launch(exampleCss);
     const { page } = session;
