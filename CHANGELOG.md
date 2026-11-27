@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - The example stylesheet selects the active theme through `html[data-theme]` instead of `html.light` / `html.dark`. If you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules whose targets no longer exist in the site were removed: the message width limit, the composer grid layout and the tighter message spacing.
 
 ### Added
+- `Ctrl+.` opens ChatGPT Settings from the focused app window, including while typing.
 - A live check that audits the signed-in ChatGPT page and fails with the name of the selector that stopped matching when the site changes again.
 - Fixture tests for hints across the sidebar, header, conversation and composer, for scroll-region selection, and for the example stylesheet in both themes.
 

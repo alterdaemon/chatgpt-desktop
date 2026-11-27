@@ -18,6 +18,29 @@ const DEFAULT_SETTINGS = {
   trustedNavigationHosts: [],
 };
 
+test("Control+. opens ChatGPT Settings while typing without a global shortcut", async () => {
+  const fixture = await startFixtureServer();
+  const profile = createProfile();
+  const app = await launchApp(profile, fixture.url);
+  try {
+    const page = await app.firstWindow();
+    await page.waitForURL(fixture.url);
+    await page.locator("#prompt-textarea").focus();
+    expect(await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered("Control+."))).toBe(false);
+    // CDP keyboard events bypass before-input-event; use Electron's input pipeline.
+    await app.evaluate(({ BrowserWindow }) => {
+      const contents = BrowserWindow.getAllWindows()[0].webContents;
+      contents.sendInputEvent({ type: "keyDown", keyCode: ".", modifiers: ["control"] });
+      contents.sendInputEvent({ type: "keyUp", keyCode: ".", modifiers: ["control"] });
+    });
+    await expect(page).toHaveURL(new URL("/settings/account", fixture.url).href);
+  } finally {
+    await app.close();
+    await fixture.close();
+    profile.remove();
+  }
+});
+
 test.describe("menus, zoom and spellcheck", () => {
   let app;
   let page;

@@ -746,6 +746,14 @@ function createWindow() {
       return;
     }
 
+    if (input.key === "." && input.control && !input.alt && !input.shift && !input.meta && isOnApplicationPage()) {
+      event.preventDefault();
+      mainWindow.loadURL(new URL("/settings/account", initialUrl).href).catch((error) => {
+        console.error("Failed to open ChatGPT Settings:", error);
+      });
+      return;
+    }
+
     const isQuitShortcut =
       input.key.toLowerCase() === "q" && (input.control || input.meta);
 

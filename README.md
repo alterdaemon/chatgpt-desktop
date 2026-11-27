@@ -168,6 +168,8 @@ On Flatpak desktops, global shortcut registration depends on desktop portal supp
 
 ## Built-in Keyboard Navigation
 
+`Ctrl+.` opens ChatGPT Settings while the app window is focused, including while typing.
+
 The app includes Vimium-style navigation keys when focus is not inside an input, textarea, select, or contenteditable editor.
 
 - `j` / `k`: scroll down or up by a small step. Keys act on the scrollable area around the focused element, then the one under the mouse pointer, then the main conversation, so hover the sidebar (or focus one of its entries) to scroll the chat list
