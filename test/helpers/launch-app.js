@@ -38,10 +38,10 @@ function createProfile({ css, scripts = {}, settings } = {}) {
   };
 }
 
-function launchApp(profile, fixtureUrl) {
+function launchApp(profile, fixtureUrl, { appRoot = projectRoot, args = [] } = {}) {
   return electron.launch({
     executablePath: require("electron"),
-    args: [projectRoot],
+    args: [appRoot, ...args],
     env: {
       ...process.env,
       NODE_ENV: "test",

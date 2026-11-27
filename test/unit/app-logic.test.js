@@ -6,6 +6,7 @@ const test = require("node:test");
 const {
   DEFAULT_INITIAL_URL,
   clampZoomFactor,
+  getBrowserUserAgent,
   getInitialUrl,
   getPermissionDecision,
   isAllowedExternalUrl,
@@ -100,6 +101,22 @@ test("clamps the zoom factor to the supported range", () => {
   assert.equal(clampZoomFactor(Number.NEGATIVE_INFINITY), 0.5);
   // NaN passes straight through, so callers must screen it first; normalizeSettings does.
   assert.equal(Number.isNaN(clampZoomFactor(Number.NaN)), true);
+});
+
+test("removes native app markers without changing the browser or platform version", () => {
+  for (const chromeVersion of ["156.0.8078.109", "160.0.1234.5"]) {
+    const browser = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+    const native = browser.replace(" Chrome/", " chatgpt-desktop/1.8.0-renderdiag.2 Chrome/") + " Electron/45.5.0";
+    assert.equal(getBrowserUserAgent(native), browser);
+    assert.equal(getBrowserUserAgent(browser), browser);
+    assert.equal(getBrowserUserAgent(getBrowserUserAgent(native)), browser);
+    assert.equal(getBrowserUserAgent(browser + " eLeCtRoN/45.5.0 CHATGPT-DESKTOP/1.8.0"), browser);
+  }
+});
+
+test("preserves unrelated user-agent tokens", () => {
+  const agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/160.0.0.0 Safari/537.36 OtherElectron/1.0";
+  assert.equal(getBrowserUserAgent(agent), agent);
 });
 
 test("allows only supported external URL protocols", () => {

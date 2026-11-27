@@ -16,6 +16,7 @@
     "dev": "electron .",
     "build:linux:dir": "electron-builder --linux dir --publish never",
     "build:linux": "electron-builder --linux --publish never",
+    "build:diagnostic": "node diagnostics/rendering/build.js",
     "setup:flatpak": "./packaging/flatpak/release/setup-flatpak.sh",
     "build:flatpak:release": "./packaging/flatpak/release/build-flatpak.sh",
     "build:flatpak:flathub": "./packaging/flatpak/flathub/build-flatpak.sh",

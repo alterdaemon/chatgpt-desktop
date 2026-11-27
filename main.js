@@ -8,6 +8,7 @@ const path = require("path");
 const fs = require("fs");
 const {
   clampZoomFactor,
+  getBrowserUserAgent,
   getInitialUrl,
   getPermissionDecision,
   isAllowedExternalUrl,
@@ -47,6 +48,10 @@ let cachedVimiumNavigationModule = "";
 app.commandLine.appendSwitch("disable-smooth-scrolling");
 app.commandLine.appendSwitch("disable-gpu-vsync");
 app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
+
+// Native app markers can make ChatGPT return text-only history instead of
+// interactive content. Keep the runtime's real platform and Chromium version.
+app.userAgentFallback = getBrowserUserAgent(app.userAgentFallback);
 
 function getConfigRoot() {
   return process.env.XDG_CONFIG_HOME || path.join(app.getPath("home"), ".config");
@@ -730,6 +735,9 @@ function createWindow() {
       devTools: false,
     },
   });
+
+  mainWindow.webContents.setUserAgent(app.userAgentFallback);
+  mainWindow.webContents.session.setUserAgent(app.userAgentFallback);
 
   applySpellCheckEnabled(mainWindow);
   applyZoomFactor(zoomFactor);

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.8.0] - 2026-11-27
 
 ### Fixed
+- Advertise a browser-compatible user agent so ChatGPT supplies interactive response content instead of a text-only fallback. The actual Chromium version and existing security settings are preserved.
 - Vimium-style link hints now cover the whole application window after ChatGPT's front-end redesign: the sidebar (chat list, navigation and account controls), the conversation header, the conversation and the composer controls. Previously only the main conversation was reachable.
 - `j`, `k`, `d`, `u`, `gg` and `G` now scroll the region you are working in: the scrollable area around the focused element, then the one under the mouse pointer, then the main conversation. The sidebar chat list can now be scrolled from the keyboard by hovering it or focusing one of its entries.
 - `gi` now prefers the message composer over other editable fields.

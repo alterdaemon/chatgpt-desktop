@@ -95,6 +95,10 @@ function clampZoomFactor(value) {
   return Math.min(3, Math.max(0.5, value));
 }
 
+function getBrowserUserAgent(userAgent) {
+  return userAgent.replace(/\s(?:Electron|chatgpt-desktop)\/\S+/gi, "");
+}
+
 function normalizeSettings(settings, defaults) {
   const normalized = { ...defaults };
 
@@ -172,6 +176,7 @@ module.exports = {
   BUILT_IN_TRUSTED_HOSTS,
   DEFAULT_INITIAL_URL,
   clampZoomFactor,
+  getBrowserUserAgent,
   getInitialUrl,
   getPermissionDecision,
   isAllowedExternalUrl,
