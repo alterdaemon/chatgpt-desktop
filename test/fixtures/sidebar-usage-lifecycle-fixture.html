@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Usage tooltip lifecycle fixture</title>
+<style>
+body { margin: 0; display: flex; background: #0a0a0a; color: white; }
+aside { width: 280px; height: 220px; background: black; }
+#usage { display: flex; align-items: center; justify-content: center; width: 36px; height: 32px; margin: 4px; padding: 0; background: #191919; }
+#usage svg { width: 20px; height: 20px; fill: #777; }
+aside.hover-only #usage { visibility: hidden; }
+aside.hover-only:hover #usage { visibility: visible; }
+[popover] { margin: 0; inset: 50px auto auto 48px; padding: 8px; font: 12px monospace; background: #222; color: white; }
+#outside { position: fixed; right: 20px; bottom: 20px; }
+</style></head><body>
+<aside id="app-shell-sidebar"><button id="usage" aria-label="Usage"><svg><circle cx="10" cy="10" r="8"></circle></svg></button></aside>
+<main><button id="outside">Outside</button></main>
+<script>
+let trigger = document.querySelector("#usage");
+if (location.search.includes("hoverhidden")) document.querySelector("aside").classList.add("hover-only");
+if (location.search.includes("roleless")) {
+  const span = document.createElement("span");
+  span.id = "usage";
+  span.setAttribute("aria-label", "Usage");
+  span.innerHTML = trigger.innerHTML;
+  trigger.replaceWith(span);
+  trigger = span;
+}
+window.usageProps = { remainingPercent: 1 };
+const formatted = location.search.includes("formatted");
+window.tooltipMessageProps = { id: "composer.mode.rateLimit.remaining", defaultMessage: "{period} · {percent}% left", values: { period: "Weekly", percent: 1 } };
+window.setRemaining = value => {
+  window.usageProps.remainingPercent = value;
+  window.tooltipMessageProps.values.percent = value;
+};
+trigger.__reactFiber$fixture = { memoizedProps: { content: { props: formatted ? window.tooltipMessageProps : window.usageProps } }, return: null };
+trigger.querySelector("svg").__reactFiber$fixture = { memoizedProps: {}, return: trigger.__reactFiber$fixture };
+window.hoverCount = 0;
+window.clickCount = 0;
+trigger.addEventListener("mouseenter", () => {
+  window.hoverCount++;
+  const tooltip = document.createElement("div");
+  tooltip.id = "usage-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.setAttribute("popover", "manual");
+  tooltip.textContent = `Weekly · ${window.usageProps.remainingPercent}% left`;
+  document.body.appendChild(tooltip);
+  // Description references, like the tooltip DOM itself, are open-state hooks,
+  // not a permanent identity or a source of the account's remaining value.
+  trigger.setAttribute("aria-describedby", tooltip.id);
+  tooltip.showPopover({ source: trigger });
+});
+trigger.addEventListener("mouseleave", () => {
+  trigger.removeAttribute("aria-describedby");
+  const tooltip = document.querySelector("#usage-tooltip");
+  if (tooltip) { tooltip.hidePopover(); tooltip.remove(); }
+});
+trigger.addEventListener("click", () => { window.clickCount++; });
+</script></body></html>

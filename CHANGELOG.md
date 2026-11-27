@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.8.0] - 2026-11-27
 
 ### Fixed
+- Decoupled the persistent usage counter from tooltip mounting, transient description attributes and the icon's hover-only visibility. Read current value-bearing controls/glyphs and bounded formatted tooltip props before hover, rather than treating an open tooltip as the indicator's identity or preferred value source.
 - Replaced the sidebar usage diamond visually with a persistent bold white 18px percentage, centered on the original icon instead of underneath it. Read tooltip wrappers and genuine usage controls inside conversation rows without requiring hover; ordinary chat titles remain excluded and the original hover target stays untouched.
 - Kept native sidebar usage hover targets untouched and read percentage text split across tooltip children, avoiding disappearing hover tooltips and missing persistent labels.
 - Fixed the separate transcript focus-ring overlay shown by clicking the chat background and pressing `f`, including with an older custom stylesheet. Modestly lightened the example composer's dark surface to `#242424` without a new border or glow.

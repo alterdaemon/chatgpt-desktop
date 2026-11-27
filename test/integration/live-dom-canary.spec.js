@@ -78,6 +78,10 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
       "or the stored session is stale, not that the network is blocked."
   ).toBeUndefined();
   expect(audit.routes.length).toBeGreaterThan(0);
+  test.info().annotations.push({
+    type: "coverage-boundary",
+    description: "The usage snapshots check structure/format only; they do not verify cold-start and post-hover persistence on the affected account.",
+  });
 
   for (const route of audit.routes) {
     for (const [theme, result] of Object.entries(route.themes)) {

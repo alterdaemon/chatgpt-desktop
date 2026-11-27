@@ -20,6 +20,20 @@
   };
   const usageText = text => /weekly|usage|remaining|left|limit/i.test(text) ? fromText(text) : null;
 
+  function fromFormattedTooltip(props, numericOnly) {
+    if (!props || typeof props.defaultMessage !== "string" || !props.values || typeof props.values !== "object") return null;
+    const message = props.defaultMessage.slice(0, 2048);
+    if (!/remaining|left/i.test(message)) return null;
+    // Within conversation rows, only a usage-specific message descriptor may
+    // supply an interpolated number; a formatted conversation title is not data.
+    if (numericOnly && !/^(?:composer\.mode\.rateLimit\.|codex\.(?:rateLimit|usage)|sidebar\.usage\.)/.test(props.id || "")) return null;
+    const matches = [...message.matchAll(/\{\s*(\w+)\s*(?:,\s*number\s*)?\}\s*%|\{\s*(\w+)\s*,\s*number\s*,\s*(?:::)?percent\s*\}/g)];
+    if (matches.length !== 1) return null;
+    const match = matches[0];
+    const value = props.values[match[1] || match[2]];
+    return typeof value === "number" ? percentage(match[2] ? value * 100 : value) : null;
+  }
+
   // Read only tooltip/usage props already held by the website. Do not access an
   // account store, fetch usage, open a tooltip, or export any of its contents.
   function fromProps(value, depth = 0, seen = new Set(), numericOnly = false) {
@@ -31,6 +45,8 @@
       const found = percentage(value[key]);
       if (found !== null) return found;
     }
+    const formatted = fromFormattedTooltip(value.props || value, numericOnly);
+    if (formatted !== null) return formatted;
     const children = Array.isArray(value) ? value : [value.props, value.values, value.tooltipContent, value.tooltip, value.content, value.children];
     for (const child of children.slice(0, 40)) {
       const found = fromProps(child, depth + 1, seen, numericOnly);
@@ -58,28 +74,7 @@
     return usageText(text(value).slice(0, 2048));
   }
 
-  function readPercentage(trigger, sidebar, numericOnly = false) {
-    for (const attribute of numericOnly ? [] : ["interestfor", "aria-describedby"]) {
-      for (const id of (trigger.getAttribute(attribute) || "").split(/\s+/).filter(Boolean)) {
-        const tooltip = document.getElementById(id);
-        const found = tooltip && usageText(tooltip.textContent || "");
-        if (found) return found;
-      }
-    }
-    const label = trigger.getAttribute("aria-label") || "";
-    const labelled = numericOnly ? null : usageText(label);
-    if (labelled !== null) return labelled;
-    if (/remaining|left/i.test(label)) {
-      const now = trigger.getAttribute("aria-valuenow");
-      const found = now !== null && now.trim() ? percentage(Number(now)) : null;
-      if (found !== null) return found;
-    }
-    if (trigger.hasAttribute("data-ambient-usage-label")) {
-      const clone = trigger.cloneNode(true);
-      clone.querySelectorAll(`[${marker}]`).forEach(node => node.remove());
-      const found = fromText(clone.textContent || "");
-      if (found !== null) return found;
-    }
+  function readReactPercentage(trigger, sidebar, numericOnly) {
     const key = Object.keys(trigger).find(key => key.startsWith("__reactFiber$"));
     let current = key ? trigger[key] : null;
     let root = current;
@@ -100,6 +95,33 @@
     return null;
   }
 
+  function readPercentage(trigger, sidebar, numericOnly = false) {
+    // Persistent site props, not the mounted/open tooltip, are the primary
+    // value source. Hovering must not select a different or stale percentage.
+    const current = readReactPercentage(trigger, sidebar, numericOnly);
+    if (current !== null) return current;
+    const label = trigger.getAttribute("aria-label") || "";
+    const labelled = numericOnly ? null : usageText(label);
+    if (labelled !== null) return labelled;
+    if (/remaining|left/i.test(label)) {
+      const now = trigger.getAttribute("aria-valuenow");
+      const found = now !== null && now.trim() ? percentage(Number(now)) : null;
+      if (found !== null) return found;
+    }
+    if (trigger.hasAttribute("data-ambient-usage-label")) {
+      const found = fromText(trigger.textContent || "");
+      if (found !== null) return found;
+    }
+    for (const attribute of numericOnly ? [] : ["interestfor", "aria-describedby"]) {
+      for (const id of (trigger.getAttribute(attribute) || "").split(/\s+/).filter(Boolean)) {
+        const tooltip = document.getElementById(id);
+        const found = tooltip && usageText(tooltip.textContent || "");
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
   function remove(trigger) {
     const entry = labels.get(trigger);
     if (!entry) return;
@@ -110,10 +132,12 @@
   function place(entry, trigger, sidebar, anchor) {
     const rect = anchor.getBoundingClientRect();
     const bounds = sidebar.getBoundingClientRect();
-    const style = getComputedStyle(trigger);
+    const style = getComputedStyle(sidebar);
     const visible = rect.width > 0 && rect.height > 0 && rect.right > bounds.left && rect.left < bounds.right &&
       rect.bottom > Math.max(0, bounds.top) && rect.top < Math.min(innerHeight, bounds.bottom) &&
       style.visibility !== "hidden" && style.display !== "none";
+    // The source glyph/trigger may use hover-only visibility. The independent
+    // counter follows its reserved geometry and sidebar, not that hover state.
     entry.label.style.display = visible ? "flex" : "none";
     if (!visible) return;
     // Paint over the icon itself, not below the row where it can be clipped or
@@ -130,9 +154,16 @@
   function refresh() {
     const active = new Set();
     for (const sidebar of document.querySelectorAll("aside, #app-shell-sidebar")) {
-      const candidates = sidebar.querySelectorAll("[interestfor], [aria-describedby], [data-ambient-usage-label], [role='progressbar'][aria-label]");
+      const sidebarRect = sidebar.getBoundingClientRect();
+      if (sidebarRect.width <= 0 || sidebarRect.height <= 0) continue;
+      // Tooltip relationship attributes are transient: aria-describedby can be
+      // absent at startup and removed on mouseleave. Discover the underlying
+      // controls/glyphs independently so neither lifecycle can remove a counter.
+      const candidates = sidebar.querySelectorAll("button, [role='button'], svg, [interestfor], [aria-describedby], [data-ambient-usage-label], [role='progressbar'][aria-label]");
       for (const candidate of candidates) {
-        const trigger = candidate.closest("button, [role='button']") || candidate;
+        const rect = candidate.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0 || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= sidebarRect.left || rect.left >= sidebarRect.right) continue;
+        const trigger = candidate.closest("button, [role='button']") || candidate.querySelector("svg") || candidate;
         if (active.has(trigger) || trigger.closest("[role='tooltip'], [popover]")) continue;
         // A real usage control may be nested in a sidebar conversation row.
         // Reject title text there, not explicit remainingPercent/usage hooks.
@@ -159,7 +190,8 @@
         // Some sidebar rows use the whole row as the interaction target. Cover
         // its usage glyph, never the neighboring conversation title.
         const triggerRect = trigger.getBoundingClientRect();
-        const anchor = triggerRect.width > 64 ? (candidate.querySelector("svg") || trigger.querySelector("svg") || candidate) : trigger;
+        const glyph = candidate.matches("svg") ? candidate : candidate.querySelector("svg") || usageHook?.querySelector("svg") || trigger.querySelector("svg");
+        const anchor = triggerRect.width > 0 && triggerRect.width <= 64 && triggerRect.height > 0 ? trigger : glyph || usageHook || candidate;
         place(entry, trigger, sidebar, anchor);
       }
     }

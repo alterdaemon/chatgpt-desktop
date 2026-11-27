@@ -144,6 +144,8 @@ function auditPage(anchors, withCss) {
   out.withCss = withCss;
   const usageLabels = [...document.querySelectorAll("[data-chatgpt-desktop-usage-percent]")];
   out.sidebarUsage = {
+    scope: "structure-only",
+    persistenceVerified: false,
     total: usageLabels.length,
     visible: usageLabels.filter(visible).length,
     valid: usageLabels.every(element => /^(?:100|\d{1,2})%$/.test(element.textContent)),
