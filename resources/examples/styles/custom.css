@@ -6,7 +6,7 @@
  *
  * Selectors here use landmarks, roles, `data-*` attributes and the site's own design tokens.
  * Generated ids (`_R_...`, `radix-...`) are never matched. The disclaimer's visibility-property
- * utility is the only class selector: the site provides no dedicated attribute on that row.
+ * utility and transcript peer-focus ring utility identify decorations with no dedicated hooks.
  */
 
 /* terminal typography */
@@ -225,6 +225,13 @@ html[data-theme="dark"] main [data-app-action-timeline-scroll] {
     box-shadow: none !important;
 }
 
+/* The transcript ring is painted on a pointer-transparent sibling, not on the
+   focused scroller itself. Do not strip rings from buttons or Markdown content. */
+html[data-theme="dark"] main [data-app-action-timeline-scroll] ~ [class*="peer-focus-visible/transcript:ring"] {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 html[data-theme="dark"] aside,
 html[data-theme="dark"] #app-shell-sidebar {
     background-color: #000000 !important;
@@ -232,6 +239,6 @@ html[data-theme="dark"] #app-shell-sidebar {
 }
 
 html[data-theme="dark"] form[data-chatgpt-composer] > div {
-    background-color: #1a1a1a !important;
+    background-color: #242424 !important;
     color: #ffffff !important;
 }

@@ -113,7 +113,7 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
       if (theme === "dark") {
         expect(result.surfaces.sidebar, `${where}: sidebar surface`).toBe("rgb(0, 0, 0)");
         expect(result.surfaces.main, `${where}: main surface`).toBe("rgb(10, 10, 10)");
-        expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(26, 26, 26)");
+        expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(36, 36, 36)");
       } else {
         expect(result.surfaces.composer, `${where}: composer surface`).toBe("rgb(247, 247, 247)");
       }
@@ -124,6 +124,8 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
     expect(route.hints.regions.header || 0, `${route.route} page: header hints`).toBeGreaterThanOrEqual(1);
     expect(route.hints.regions.composer || 0, `${route.route} page: composer hints`).toBeGreaterThanOrEqual(1);
     expect(route.hints.frameOutlines, `${route.route} page: hint mode must not paint a bright frame outline`).toBe(0);
+    expect(route.hints.siblingFrameRings, `${route.route} page: the decorative transcript peer ring must not be painted`).toBe(0);
+    if (route.route === "conversation") expect(route.transcriptFocused, "background click must focus the real transcript before f").toBe(true);
 
     // With the pointer over the sidebar list, j scrolls the list and leaves the thread alone.
     if (route.sidebarScroll) {

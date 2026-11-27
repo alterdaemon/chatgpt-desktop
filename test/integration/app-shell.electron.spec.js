@@ -46,6 +46,36 @@ const roundedElements = (page) =>
     return found;
   });
 
+for (const stylesheet of [undefined, exampleCss]) {
+  test(`clicking chat background then f suppresses its sibling focus ring; example stylesheet=${Boolean(stylesheet)}`, async () => {
+    const session = await launch(stylesheet);
+    const { page } = session;
+    try {
+      await page.evaluate(() => { document.documentElement.setAttribute("data-theme", "dark"); });
+      const scroller = page.locator("[data-app-action-timeline-scroll]");
+      await scroller.click({ position: { x: 200, y: 150 } });
+      await expect(scroller).toBeFocused();
+      await page.keyboard.press("f");
+      await expect(page.locator("[data-chatgpt-desktop-hints]")).toBeVisible();
+      expect(await scroller.evaluate(el => el.matches(":focus-visible"))).toBe(true);
+      await expect(page.locator("#transcript-focus-ring")).toHaveCSS("box-shadow", "none");
+      await page.keyboard.press("Escape");
+      if (!stylesheet) {
+        // Original native focus styling returns when hints stop; only the
+        // decorative transcript overlay was changed, not keyboard focus itself.
+        await expect(page.locator("#transcript-focus-ring")).not.toHaveCSS("box-shadow", "none");
+      }
+      await page.locator("#header-share").evaluate(el => { el.style.outline = "2px solid rgb(0, 90, 255)"; });
+      await page.locator("#header-share").focus();
+      await page.keyboard.press("f");
+      await expect(page.locator("#header-share")).toHaveCSS("outline-style", "solid");
+      await expect(page.locator("#header-share")).toHaveCSS("outline-color", "rgb(0, 90, 255)");
+    } finally {
+      await session.close();
+    }
+  });
+}
+
 test.describe("example stylesheet", () => {
   test.describe.configure({ mode: "serial" });
 
@@ -252,7 +282,7 @@ test.describe("example stylesheet", () => {
       await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
       await expect(page.locator("#app-shell-sidebar")).toHaveCSS("background-color", "rgb(0, 0, 0)");
       await expect(page.locator("main")).toHaveCSS("background-color", "rgb(10, 10, 10)");
-      await expect(page.locator("form[data-chatgpt-composer] > div")).toHaveCSS("background-color", "rgb(26, 26, 26)");
+      await expect(page.locator("form[data-chatgpt-composer] > div")).toHaveCSS("background-color", "rgb(36, 36, 36)");
 
       await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
       await expect(page.locator("form[data-chatgpt-composer] > div")).toHaveCSS("background-color", "rgb(247, 247, 247)");

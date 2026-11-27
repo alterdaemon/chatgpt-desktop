@@ -12,10 +12,10 @@ test("usage percentage is visible without hover and preserves native tooltip and
     let usageRequests = 0;
     page.on("request", request => { if (["xhr", "fetch"].includes(request.resourceType())) usageRequests++; });
     const marker = "[data-chatgpt-desktop-usage-percent]";
-    const number = page.locator(`#usage ${marker}`);
+    const number = page.locator(marker).nth(0);
     await expect(number).toHaveText("3%");
     await expect(number).toBeVisible();
-    await expect(page.locator(`#react-usage ${marker}`)).toHaveText("75%");
+    await expect(page.locator(marker).nth(1)).toHaveText("75%");
     await expect(page.locator(`#unrelated ${marker}`)).toHaveCount(0);
     await expect(page.locator(`#conversation ${marker}`)).toHaveCount(0);
     await expect(page.locator("#usage-tooltip")).toBeHidden();
@@ -41,7 +41,7 @@ test("usage percentage is visible without hover and preserves native tooltip and
     await page.locator("#react-usage").evaluate(element => {
       element.__reactFiber$fixture.memoizedProps.content.props.values.remainingPercent = 12;
     });
-    await expect(page.locator(`#react-usage ${marker}`)).toHaveText("12%");
+    await expect(page.locator(marker).nth(1)).toHaveText("12%");
     await page.locator("#react-usage").evaluate(element => {
       const original = element.__reactFiber$fixture;
       const currentRoot = { stateNode: {}, return: null };
@@ -50,16 +50,17 @@ test("usage percentage is visible without hover and preserves native tooltip and
       original.return = oldRoot;
       original.alternate = { memoizedProps: { content: { props: { values: { remainingPercent: 9 } } } }, return: currentRoot };
     });
-    await expect(page.locator(`#react-usage ${marker}`)).toHaveText("9%");
+    await expect(page.locator(marker).nth(1)).toHaveText("9%");
     await page.evaluate(() => { history.pushState({}, "", "/c/fixture"); });
     await expect(number).toHaveCount(1);
     await page.evaluate(() => window.__chatgptDesktopSidebarUsage.refresh());
     await expect(page.locator(marker)).toHaveCount(2);
     // React can replace its children; the adapter restores only its own label.
-    await page.locator("#usage").evaluate(element => element.querySelector("span").remove());
-    await expect(number).toHaveText("0%");
+    await number.evaluate(element => element.remove());
+    await expect(page.locator(marker)).toHaveText(["9%", "0%"]);
     await page.locator("#usage-tooltip").evaluate(element => { element.textContent = "Usage unavailable"; });
-    await expect(number).toHaveCount(0);
+    await expect(page.locator(marker)).toHaveCount(1);
+    await expect(page.locator(marker)).toHaveText("9%");
     await expect(page.locator("#usage")).toHaveCSS("height", "32px");
     await page.evaluate(() => window.__chatgptDesktopSidebarUsage.destroy());
     await expect(page.locator(marker)).toHaveCount(0);

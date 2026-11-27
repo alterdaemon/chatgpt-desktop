@@ -583,6 +583,7 @@
       this.hintRefreshFrame = null;
       this.hintMutationObserver = null;
       this.hintLayoutDirty = false;
+      this.frameRingStyles = [];
       this.pendingSequence = "";
       this.pendingSequenceTimer = null;
       // Last known pointer position, used to choose which scrollable region keys act on.
@@ -1059,6 +1060,15 @@
       }
 
       this.exitHintMode();
+      // The website paints the transcript focus ring on a decorative sibling,
+      // not on the focused scroller. Limit suppression to that noninteractive
+      // overlay while hints are active; never remove a control's focus indicator.
+      for (const ring of document.querySelectorAll('main [data-app-action-timeline-scroll] ~ [class*="peer-focus-visible/transcript:ring"]')) {
+        if (!(ring instanceof HTMLElement) || getComputedStyle(ring).pointerEvents !== "none") continue;
+        const saved = ["box-shadow", "outline"].map(property => [property, ring.style.getPropertyValue(property), ring.style.getPropertyPriority(property)]);
+        this.frameRingStyles.push({ ring, saved });
+        for (const [property] of saved) ring.style.setProperty(property, "none", "important");
+      }
       this.hintMode = {
         alternate,
         input: "",
@@ -1176,6 +1186,13 @@
       this.hintMode = null;
       this.hintLayoutDirty = false;
       this.hints = [];
+      for (const { ring, saved } of this.frameRingStyles) {
+        for (const [property, value, priority] of saved) {
+          if (value) ring.style.setProperty(property, value, priority);
+          else ring.style.removeProperty(property);
+        }
+      }
+      this.frameRingStyles = [];
 
       if (this.overlay && this.overlay.isConnected) {
         this.overlay.remove();

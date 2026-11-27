@@ -170,7 +170,9 @@ function auditHints() {
   }
   const frameOutlines = [...document.querySelectorAll("main, main [data-app-shell-main-content-layout], main [data-app-action-timeline-scroll]")]
     .filter(element => { const style = getComputedStyle(element); return style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0; }).length;
-  return { total, regions, frameOutlines };
+  const siblingFrameRings = [...document.querySelectorAll('main [data-app-action-timeline-scroll] ~ [class*="peer-focus-visible/transcript:ring"]')]
+    .filter(element => getComputedStyle(element).boxShadow !== "none").length;
+  return { total, regions, frameOutlines, siblingFrameRings };
 }
 // -----------------------------------------------------------------------------------------------
 
@@ -223,6 +225,23 @@ async function auditRoute(wc, route, css) {
 
   // Hints, with Escape first so the composer does not hold editable context.
   await press(wc, "Escape");
+  if (route === "conversation") {
+    // Reproduce the real regression: a mouse click focuses the transcript,
+    // then f switches to :focus-visible and activates a separate peer ring.
+    const point = await run(wc, `(() => {
+      const el = document.querySelector("main [data-app-action-timeline-scroll]");
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return { x: Math.round(rect.left + 20), y: Math.round(rect.top + rect.height / 2) };
+    })()`);
+    if (point) {
+      wc.sendInputEvent({ type: "mouseMove", ...point });
+      wc.sendInputEvent({ type: "mouseDown", button: "left", clickCount: 1, ...point });
+      wc.sendInputEvent({ type: "mouseUp", button: "left", clickCount: 1, ...point });
+      await sleep(150);
+    }
+    result.transcriptFocused = await run(wc, 'document.activeElement?.matches("[data-app-action-timeline-scroll]") === true');
+  }
   await press(wc, "f");
   result.hints = await evaluate(wc, auditHints);
   await press(wc, "Escape");

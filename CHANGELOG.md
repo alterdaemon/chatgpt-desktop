@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [1.8.0] - 2026-11-27
 
 ### Fixed
+- Kept native sidebar usage hover targets untouched and read percentage text split across tooltip children, avoiding disappearing hover tooltips and missing persistent labels.
+- Fixed the separate transcript focus-ring overlay shown by clicking the chat background and pressing `f`, including with an older custom stylesheet. Modestly lightened the example composer's dark surface to `#242424` without a new border or glow.
 - Changed the Settings shortcut to `Ctrl+,` (comma), with a native window-local accelerator and a ChatGPT Settings menu fallback. Tests now require the actual Settings page rather than only its URL.
 - Settings opens within the current page instead of reloading the website, preserving zoom, custom fonts and injected styling without a resize/font flash.
-- Darkened the example stylesheet: a black sidebar, almost-black chat surface and matching header/footer covers. The composer uses the previous chat surface color for contrast, without an extra border; light mode is unchanged. The focused chat frame no longer gains a bright outline during Vimium-style navigation.
+- Darkened the example stylesheet: a black sidebar, almost-black chat surface and matching header/footer covers. The composer has a modestly lighter surface for contrast, without an extra border; light mode is unchanged. The focused chat frame no longer gains a bright outline during Vimium-style navigation.
 - Added regression checks that headings, lists, emphasis, inline and fenced code, tables, quotes, and legitimate text fallbacks remain visible with the example stylesheet in both themes.
 - Advertise a browser-compatible user agent so ChatGPT supplies interactive response content instead of a text-only fallback. The actual Chromium version and existing security settings are preserved.
 - Vimium-style link hints now cover the whole application window after ChatGPT's front-end redesign: the sidebar (chat list, navigation and account controls), the conversation header, the conversation and the composer controls. Previously only the main conversation was reachable.
