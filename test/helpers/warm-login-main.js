@@ -14,6 +14,7 @@
 const path = require("path");
 const { app, BrowserWindow } = require("electron");
 const { COMPOSER_SELECTOR } = require("./live-composer");
+const { parseSessionCookies } = require("./live-session");
 
 // This runs as a bare script, so Electron would default the app name to
 // "Electron" and use a different userData directory than the real app. Mirror
@@ -155,6 +156,9 @@ app.whenReady().then(async () => {
   });
 
   try {
+    for (const cookie of parseSessionCookies(process.env.CHATGPT_TEST_SESSION_COOKIES)) {
+      await win.webContents.session.cookies.set(cookie);
+    }
     await win.webContents.loadURL(CHATGPT_URL);
     const existing = await waitFor(win.webContents, (state) => state.composer, 20000);
 

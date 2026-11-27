@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - Recognize both the current role-based ChatGPT composer and its legacy ID in live smoke tests and login warm-up.
 - Recognize current assistant responses without mistaking the smoke prompt for a reply.
 - Configure the Electron sandbox helper in Linux CI so live login warm-up can run with sandboxing enabled.
+- Allow CI to bootstrap a first-party authenticated test session from an encrypted secret while retaining the mandatory real ChatGPT prompt-and-reply check.
 
 ## [1.5.0] - 2026-03-22
 

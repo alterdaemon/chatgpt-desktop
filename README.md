@@ -209,6 +209,8 @@ Playwright's test runner and CLI are installed through `@playwright/test`; use `
 
 The live check reads `CHATGPT_TEST_EMAIL` and `CHATGPT_TEST_PASSWORD` from the environment. It signs in once in a separate Electron run and stores the session in an ignored profile directory, so later runs reuse that session and skip the sign-in. Each passing run sends one short prompt to the configured account, which leaves a conversation in that account's history. Skip this suite with `npm run test:unit && npm run test:integration` if you would rather not use a real account.
 
+CI can bootstrap an existing authenticated session with the encrypted `CHATGPT_TEST_SESSION_COOKIES` repository secret. It contains a JSON array of unexpired first-party ChatGPT session cookies, allowing the runner to reuse a trusted login when its network is challenged at the sign-in screen. The full real prompt-and-reply check still runs. Treat this secret like a password: never commit or log it, and refresh it when the session expires.
+
 ## Build Linux packages
 
 ```bash
