@@ -187,12 +187,13 @@ form[data-chatgpt-composer] [role="textbox"] {
     display: none !important;
 }
 
-/* With the top fade removed, the fixed title bar needs a solid fill to cover scrolled text. */
-html[data-theme="light"] main header [data-app-shell-main-titlebar] {
+/* Only conversations need this cover after removing the top fade. Full-bleed views such as
+   Settings render their own headings under the shared title bar and must retain transparency. */
+html[data-theme="light"] main:has([data-app-shell-main-content-layout="thread-edge-scroll"]) header [data-app-shell-main-titlebar] {
     background-color: #fcfcfc !important;
 }
 
-html[data-theme="dark"] main header [data-app-shell-main-titlebar] {
+html[data-theme="dark"] main:has([data-app-shell-main-content-layout="thread-edge-scroll"]) header [data-app-shell-main-titlebar] {
     background-color: #1a1a1a !important;
 }
 

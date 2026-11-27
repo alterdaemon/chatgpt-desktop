@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 - `j`, `k`, `d`, `u`, `gg` and `G` now scroll the region you are working in: the scrollable area around the focused element, then the one under the mouse pointer, then the main conversation. The sidebar chat list can now be scrolled from the keyboard by hovering it or focusing one of its entries.
 - `gi` now prefers the message composer over other editable fields.
 - The example stylesheet (`resources/examples/styles/custom.css`) was rewritten for the current ChatGPT site and removes rounded corners again. It zeroes the site's own corner-radius design tokens and adds a small fallback for literal radii; avatars stay circular. It also removes the fade overlays at the top and bottom of the conversation, the edge fades on the composer and the sidebar chat list, and the shadow on the floating scroll button. In the dark theme the solid cover below the composer now matches the chat surface instead of showing as a black band.
-- The example stylesheet hides the "ChatGPT can make mistakes" disclaimer and its reserved space again. The fixed conversation title bar has a solid, theme-matched background so scrolled messages do not show through after removing the top fade.
+- The example stylesheet hides the "ChatGPT can make mistakes" disclaimer and its reserved space again. The fixed title bar has a solid, theme-matched background only on conversation layouts so scrolled messages do not show through after removing the top fade; Settings keeps its transparent title bar so section headings are not covered.
 
 ### Changed
 - Link hints are collected fresh each time hint mode is entered instead of being cached, so a changed sidebar or menu is never labelled with stale targets.

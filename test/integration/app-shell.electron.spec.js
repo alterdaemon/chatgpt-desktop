@@ -186,6 +186,24 @@ test.describe("example stylesheet", () => {
     }
   });
 
+  test("does not paint over full-bleed Settings when switching away from a conversation", async () => {
+    const session = await launch(exampleCss);
+    const { page } = session;
+    try {
+      for (const theme of ["light", "dark"]) {
+        await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+        const titlebar = page.locator("[data-app-shell-main-titlebar]");
+        const layout = page.locator("[data-app-shell-main-content-layout]");
+        await layout.evaluate((el) => el.setAttribute("data-app-shell-main-content-layout", "full-bleed"));
+        await expect(titlebar).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+        await layout.evaluate((el) => el.setAttribute("data-app-shell-main-content-layout", "thread-edge-scroll"));
+        await expect(titlebar).toHaveCSS("background-color", theme === "dark" ? "rgb(26, 26, 26)" : "rgb(252, 252, 252)");
+      }
+    } finally {
+      await session.close();
+    }
+  });
+
   test("squares transient surfaces such as an open menu", async () => {
     const session = await launch(exampleCss);
     const { page } = session;
