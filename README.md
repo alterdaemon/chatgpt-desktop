@@ -170,7 +170,7 @@ On Flatpak desktops, global shortcut registration depends on desktop portal supp
 
 `Ctrl+,` (comma) opens ChatGPT Settings while the app window is focused, including while typing. The Application menu also provides **ChatGPT Settings**. This action is disabled on sign-in pages and is not a system-wide shortcut.
 
-When ChatGPT provides a sidebar usage indicator, a bold white percentage replaces its diamond without requiring hover, as a bare number and `%`. The original hover tooltip remains available; no extra usage requests are made.
+When ChatGPT provides a sidebar usage indicator, its remaining percentage replaces the diamond without requiring hover, in the sidebar's own font. The original hover tooltip remains available; no extra requests are made and nothing runs while the page is idle.
 
 The app includes Vimium-style navigation keys when focus is not inside an input, textarea, select, or contenteditable editor.
 

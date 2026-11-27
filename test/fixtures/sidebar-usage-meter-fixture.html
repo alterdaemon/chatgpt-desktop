@@ -2,12 +2,16 @@
 <html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Usage meter fixture</title>
 <style>
 body { margin: 0; display: flex; background: #0a0a0a; color: white; font: 12px monospace; }
-aside { width: 56px; height: 300px; background: black; display: flex; flex-direction: column; justify-content: flex-end; }
+aside { width: 56px; height: 300px; transition: none; flex-shrink: 0; background: black; display: flex; flex-direction: column; justify-content: flex-end; }
 #meter { width: 36px; height: 36px; margin: 8px; padding: 0; border: 0; background: #191919; color: #ddd; position: relative; }
 #meter .wrap { position: relative; display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; }
 #meter svg { position: absolute; inset: 0; margin: auto; width: 24px; height: 24px; overflow: visible; }
 .tip { position: fixed; left: 70px; top: 262px; padding: 6px 10px; background: #222; border-radius: 99px; white-space: nowrap; }
+aside.wide { width: 280px; }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+#arc { animation: pulse 1s infinite; }
 main { padding: 20px 80px; }
+#scroller { height: 100px; overflow: auto; }
 #outside { position: fixed; right: 20px; top: 20px; }
 </style></head><body>
 <aside id="app-shell-sidebar">
@@ -27,11 +31,19 @@ main { padding: 20px 80px; }
   </button>
 </aside>
 <main><button id="outside" type="button">Outside</button>
+  <div id="scroller"><div style="height:2000px"></div></div><div id="thread"></div>
 </main>
 <script>
 const meter = document.querySelector("#meter");
 const params = new URLSearchParams(location.search);
 window.pointerEvents = 0;
+// Counts timers created from here on, so a test can prove the adapter never polls.
+window.intervals = 0;
+const realSetInterval = window.setInterval;
+window.setInterval = (...args) => { window.intervals++; return realSetInterval(...args); };
+if (params.has("pct")) meter.setAttribute("aria-description", `Weekly usage: ${params.get("pct")}% left`);
+if (params.has("light")) document.querySelector("aside").style.background = "rgb(249, 249, 249)";
+if (params.has("big")) document.querySelector("aside").style.fontSize = "20px";
 if (params.has("turkish")) meter.setAttribute("aria-description", "Haftalık kullanım: %1 kaldı");
 if (params.has("two")) meter.setAttribute("aria-description", "5-hour usage: 40% left. Weekly usage: 7% left");
 if (params.has("ring")) { meter.removeAttribute("aria-description"); document.querySelector("#arc").setAttribute("stroke-dashoffset", "88"); }

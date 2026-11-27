@@ -4,27 +4,49 @@
     window[namespace].refresh();
     return;
   }
+
+  // Shows the remaining usage percentage in place of the sidebar usage meter's diamond.
+  //
+  // Value source: the meter is a button whose aria-description holds the current remaining
+  // percentage ("Weekly usage: 1% left") for as long as it is rendered; its hover tooltip only has
+  // text while open, so it is never used. No requests are made and nothing is written to the site's
+  // own elements: the number is drawn in a separate pointer-transparent layer.
+  //
+  // Refresh is event-driven, with no timer: it runs only when the meter's own attributes change,
+  // when nodes are added or removed outside the conversation, when the meter or its sidebar is
+  // resized, and when the window is shown or focused again. The site refreshes its own usage data
+  // (periodically, on focus and after each reply), which changes the meter's description and wakes
+  // this module; it therefore never needs a timer or a request of its own. Streaming replies change only the conversation and never wake this module.
   const marker = "data-chatgpt-desktop-usage-percent";
+  const SIDEBAR = "#app-shell-sidebar, aside";
+  const ROW = "[data-sidebar-archive-chatgpt-id], [data-explore-row]";
+  const RING = "path[pathLength='100']";
   const labels = new Map();
+  let runs = 0;
+
   const layer = document.createElement("div");
   layer.setAttribute("data-chatgpt-desktop-usage-layer", "");
   layer.setAttribute("aria-hidden", "true");
-  layer.style.cssText = "position:fixed;inset:0;pointer-events:none!important;z-index:2147483646";
-  const percentage = value => {
-    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) return null;
-    return `${Math.round(value)}%`;
-  };
-  const fromText = text => {
-    const match = text.match(/(?:^|[^\d.,+-])([\d]+(?:[.,][\d]+)?)\s*%/);
-    return match ? percentage(Number(match[1].replace(",", "."))) : null;
-  };
-  const usageText = text => /weekly|usage|remaining|left|limit/i.test(text) ? fromText(text) : null;
+  // Zero-sized: labels are positioned relative to the viewport origin, so there is no viewport-sized layer to composite.
+  layer.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none!important;z-index:2147483646";
 
-  // The site's usage meter is a button whose aria-description holds the CURRENT remaining
-  // percentage ("Weekly usage: 1% left") for as long as it is rendered. Its hover tooltip, by
-  // contrast, mounts its text only while open. Read the persistent attribute, and extract the
-  // numbers without depending on English words so localized interfaces work too. With two windows
-  // ("5-hour ... Weekly ...") the lower value is the one that limits the user.
+  // While a percentage is shown the site's own animated diamond/ring is hidden and its animations
+  // are stopped, rather than merely covered: a covered animation still costs CPU (the meter pulses
+  // when usage is low). Only the SVGs are hidden, so the meter keeps its size, its pointer
+  // handling and its native tooltip. The style exists only while a percentage is displayed, so the
+  // button is never left blank.
+  const meterStyle = document.createElement("style");
+  meterStyle.setAttribute("data-chatgpt-desktop-usage-style", "");
+  const meterSelector = ":is(#app-shell-sidebar, aside) :is(button, [role=\"button\"]):has(path[pathLength=\"100\"][stroke=\"currentColor\"])";
+  meterStyle.textContent = `${meterSelector} svg { visibility: hidden !important; }
+${meterSelector}, ${meterSelector} *, ${meterSelector} *::before, ${meterSelector} *::after { animation: none !important; transition: none !important; }`;
+  meterStyle.disabled = true;
+  document.documentElement.appendChild(meterStyle);
+
+  const percentage = value => `${Math.round(value)}%`;
+
+  // Numbers only, so localized descriptions work, including "%1" style formats. With two windows
+  // ("5-hour ... Weekly ...") the lower remaining value is the one that limits the user.
   const percentsFrom = text => {
     const found = [];
     for (const match of String(text).matchAll(/(\d+(?:[.,]\d+)?)\s*%|%\s*(\d+(?:[.,]\d+)?)/g)) {
@@ -34,198 +56,116 @@
     return found;
   };
 
-  function readMeter(element, requireRing) {
+  const ringArcs = element => [...element.querySelectorAll(RING)].filter(path => path.getAttribute("stroke") === "currentColor");
+
+  function readMeter(element) {
     if (!element.querySelector("svg")) return null;
-    const arcs = [...element.querySelectorAll("path[pathLength='100']")].filter(path => path.getAttribute("stroke") === "currentColor");
-    if (requireRing && !arcs.length) return null;
     const values = percentsFrom(element.getAttribute("aria-description") || "");
     if (values.length) return percentage(Math.min(...values));
-    // No description: the ring itself encodes the remaining percentage (dash offset = 100 - remaining).
+    // No description: the ring encodes it (dash offset = 100 - remaining).
+    const arcs = ringArcs(element);
     const remaining = arcs.map(path => 100 - parseFloat(getComputedStyle(path).strokeDashoffset));
     return arcs.length && remaining.every(value => Number.isFinite(value) && value >= 0 && value <= 100)
       ? percentage(Math.min(...remaining)) : null;
   }
 
-  function fromFormattedTooltip(props, numericOnly) {
-    if (!props || typeof props.defaultMessage !== "string" || !props.values || typeof props.values !== "object") return null;
-    const message = props.defaultMessage.slice(0, 2048);
-    if (!/remaining|left/i.test(message)) return null;
-    // Within conversation rows, only a usage-specific message descriptor may
-    // supply an interpolated number; a formatted conversation title is not data.
-    if (numericOnly && !/^(?:composer\.mode\.rateLimit\.|codex\.(?:rateLimit|usage)|sidebar\.usage\.)/.test(props.id || "")) return null;
-    const matches = [...message.matchAll(/\{\s*(\w+)\s*(?:,\s*number\s*)?\}\s*%|\{\s*(\w+)\s*,\s*number\s*,\s*(?:::)?percent\s*\}/g)];
-    if (matches.length !== 1) return null;
-    const match = matches[0];
-    const value = props.values[match[1] || match[2]];
-    return typeof value === "number" ? percentage(match[2] ? value * 100 : value) : null;
+  function findMeters() {
+    const found = new Set();
+    for (const element of document.querySelectorAll("[aria-description]")) {
+      if (element.closest("[role='tooltip'], [popover]")) continue;
+      // Percent text elsewhere is not usage: outside a conversation row it needs the sidebar,
+      // inside one it needs the meter's ring.
+      if (element.querySelector(RING) || (element.closest(SIDEBAR) && !element.closest(ROW))) found.add(element);
+    }
+    for (const arc of document.querySelectorAll(`${RING}[stroke='currentColor']`)) {
+      const element = arc.closest("button, [role='button']");
+      if (element && element.closest(SIDEBAR)) found.add(element);
+    }
+    return found;
   }
 
-  // Read only tooltip/usage props already held by the website. Do not access an
-  // account store, fetch usage, open a tooltip, or export any of its contents.
-  function fromProps(value, depth = 0, seen = new Set(), numericOnly = false) {
-    if (depth > 7 || value == null || seen.has(value)) return null;
-    if (typeof value === "string") return numericOnly ? null : usageText(value);
-    if (typeof value !== "object") return null;
-    seen.add(value);
-    for (const key of ["remainingPercent", "remaining_percent"]) {
-      const found = percentage(value[key]);
-      if (found !== null) return found;
-    }
-    const formatted = fromFormattedTooltip(value.props || value, numericOnly);
-    if (formatted !== null) return formatted;
-    const children = Array.isArray(value) ? value : [value.props, value.values, value.tooltipContent, value.tooltip, value.content, value.children];
-    for (const child of children.slice(0, 40)) {
-      const found = fromProps(child, depth + 1, seen, numericOnly);
-      if (found !== null) return found;
-    }
-    return null;
-  }
+  let resizeObserver = null;
 
-  // React/i18n commonly splits "Weekly · 3% left" across multiple children.
-  // Joining only bounded tooltip children avoids mistaking each fragment for
-  // an independent label, without invoking components or reading account stores.
-  function tooltipPercentage(value) {
-    const numeric = fromProps(value);
-    if (numeric !== null) return numeric;
-    const seen = new Set();
-    let budget = 120;
-    const text = (node, depth = 0) => {
-      if (--budget < 0 || depth > 10 || node == null) return "";
-      if (typeof node === "string" || typeof node === "number") return String(node).slice(0, 256);
-      if (typeof node !== "object" || seen.has(node)) return "";
-      seen.add(node);
-      if (Array.isArray(node)) return node.slice(0, 40).map(child => text(child, depth + 1)).join("");
-      return text(node.props?.children ?? node.children, depth + 1);
-    };
-    return usageText(text(value).slice(0, 2048));
-  }
-
-  function readReactPercentage(trigger, sidebar, numericOnly) {
-    const key = Object.keys(trigger).find(key => key.startsWith("__reactFiber$"));
-    let current = key ? trigger[key] : null;
-    let root = current;
-    for (let depth = 0; root?.return && depth < 100; depth++) root = root.return;
-    // React may keep the DOM pointer on the previous alternate after a commit.
-    // Prefer the branch belonging to the current root, not stale tooltip props.
-    if (root?.stateNode?.current && root.stateNode.current !== root && current?.alternate) current = current.alternate;
-    for (let fiber = current, depth = 0; fiber && depth < 32; fiber = fiber.return, depth++) {
-      if (fiber.stateNode instanceof HTMLElement && !sidebar.contains(fiber.stateNode)) break;
-      const props = fiber.memoizedProps;
-      for (const content of [props?.tooltipContent, props?.tooltip, props?.content]) {
-        const found = numericOnly ? fromProps(content, 0, new Set(), true) : tooltipPercentage(content);
-        if (found !== null) return found;
-      }
-      const found = percentage(props?.remainingPercent);
-      if (found !== null) return found;
-    }
-    return null;
-  }
-
-  function readPercentage(trigger, sidebar, numericOnly = false) {
-    // The committed DOM of the usage meter is authoritative and independent of hover. Inside a
-    // conversation row only a real meter (with its ring) counts, never title text.
-    const meter = readMeter(trigger, numericOnly);
-    if (meter !== null) return meter;
-    // Persistent site props, not the mounted/open tooltip, are the next value source.
-    // Hovering must not select a different or stale percentage.
-    const current = readReactPercentage(trigger, sidebar, numericOnly);
-    if (current !== null) return current;
-    const label = trigger.getAttribute("aria-label") || "";
-    const labelled = numericOnly ? null : usageText(label);
-    if (labelled !== null) return labelled;
-    if (/remaining|left/i.test(label)) {
-      const now = trigger.getAttribute("aria-valuenow");
-      const found = now !== null && now.trim() ? percentage(Number(now)) : null;
-      if (found !== null) return found;
-    }
-    if (trigger.hasAttribute("data-ambient-usage-label")) {
-      const found = fromText(trigger.textContent || "");
-      if (found !== null) return found;
-    }
-    for (const attribute of numericOnly ? [] : ["interestfor", "aria-describedby"]) {
-      for (const id of (trigger.getAttribute(attribute) || "").split(/\s+/).filter(Boolean)) {
-        const tooltip = document.getElementById(id);
-        const found = tooltip && usageText(tooltip.textContent || "");
-        if (found) return found;
-      }
-    }
-    return null;
-  }
-
-  function remove(trigger) {
-    const entry = labels.get(trigger);
+  function remove(meter) {
+    const entry = labels.get(meter);
     if (!entry) return;
     entry.label.remove();
-    labels.delete(trigger);
+    if (resizeObserver) { resizeObserver.unobserve(meter); resizeObserver.unobserve(entry.container); }
+    labels.delete(meter);
   }
 
-  function place(entry, trigger, sidebar, anchor) {
-    const rect = anchor.getBoundingClientRect();
-    const bounds = sidebar.getBoundingClientRect();
-    const style = getComputedStyle(sidebar);
+  // Typography follows the sidebar's own text so the number looks native: same family and size,
+  // reduced only as far as needed for the whole text ("100%") to fit within the meter's width.
+  // The backing hides the diamond and must blend with the sidebar: use the first opaque background
+  // behind the meter, and white text on a dark one (near-black on a light one) so it stays readable.
+  function surface(element) {
+    for (let node = element; node instanceof Element; node = node.parentElement) {
+      const match = getComputedStyle(node).backgroundColor.match(/rgba?\(([^)]+)\)/);
+      if (!match) continue;
+      const [r, g, b, a = 1] = match[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+      if (a >= 0.99) return { background: `rgb(${r}, ${g}, ${b})`, dark: 0.2126 * r + 0.7152 * g + 0.0722 * b < 140 };
+    }
+    return { background: "rgb(0, 0, 0)", dark: true };
+  }
+
+  const MAX_FONT = 16;
+  const MIN_FONT = 10;
+
+  function place(entry, meter) {
+    const { label, container } = entry;
+    const rect = meter.getBoundingClientRect();
+    const bounds = container.getBoundingClientRect();
+    const containerStyle = getComputedStyle(container);
     const visible = rect.width > 0 && rect.height > 0 && rect.right > bounds.left && rect.left < bounds.right &&
       rect.bottom > Math.max(0, bounds.top) && rect.top < Math.min(innerHeight, bounds.bottom) &&
-      style.visibility !== "hidden" && style.display !== "none";
-    // The source glyph/trigger may use hover-only visibility. The independent
-    // counter follows its reserved geometry and sidebar, not that hover state.
-    entry.label.style.display = visible ? "flex" : "none";
+      containerStyle.visibility !== "hidden" && containerStyle.display !== "none";
+    label.style.display = visible ? "flex" : "none";
     if (!visible) return;
-    // Paint over the icon itself, not below the row where it can be clipped or
-    // mistaken for tooltip text. The pointer still reaches the unchanged target.
-    entry.label.style.width = "max-content";
-    const width = Math.max(rect.width, Math.ceil(entry.label.getBoundingClientRect().width));
-    const height = Math.max(rect.height, 24);
-    entry.label.style.width = `${width}px`;
-    entry.label.style.height = `${height}px`;
-    entry.label.style.left = `${Math.max(bounds.left, Math.min(rect.left + (rect.width - width) / 2, bounds.right - width))}px`;
-    entry.label.style.top = `${Math.max(0, Math.min(rect.top + (rect.height - height) / 2, innerHeight - height))}px`;
+    const base = Math.min(MAX_FONT, parseFloat(containerStyle.fontSize) || 14);
+    label.style.fontFamily = containerStyle.fontFamily;
+    const { background, dark } = surface(meter.parentElement || container);
+    label.style.setProperty("background", background, "important");
+    label.style.setProperty("color", dark ? "#fff" : "#111", "important");
+    label.style.width = "max-content";
+    label.style.fontSize = `${base}px`;
+    const natural = label.getBoundingClientRect().width;
+    const room = Math.max(1, rect.width - 2);
+    const size = natural > room ? Math.max(MIN_FONT, Math.floor(base * room / natural * 2) / 2) : base;
+    label.style.fontSize = `${size}px`;
+    const width = Math.max(rect.width, Math.ceil(label.getBoundingClientRect().width));
+    const height = Math.max(rect.height, 20);
+    label.style.width = `${width}px`;
+    label.style.height = `${height}px`;
+    label.style.lineHeight = `${height}px`;
+    label.style.left = `${Math.max(bounds.left, Math.min(rect.left + (rect.width - width) / 2, bounds.right - width))}px`;
+    label.style.top = `${Math.max(0, Math.min(rect.top + (rect.height - height) / 2, innerHeight - height))}px`;
   }
 
   function refresh() {
+    runs++;
     const active = new Set();
-    for (const sidebar of document.querySelectorAll("aside, #app-shell-sidebar")) {
-      const sidebarRect = sidebar.getBoundingClientRect();
-      if (sidebarRect.width <= 0 || sidebarRect.height <= 0) continue;
-      // Tooltip relationship attributes are transient: aria-describedby can be
-      // absent at startup and removed on mouseleave. Discover the underlying
-      // controls/glyphs independently so neither lifecycle can remove a counter.
-      const candidates = sidebar.querySelectorAll("button, [role='button'], svg, [interestfor], [aria-describedby], [data-ambient-usage-label], [role='progressbar'][aria-label]");
-      for (const candidate of candidates) {
-        const rect = candidate.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0 || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= sidebarRect.left || rect.left >= sidebarRect.right) continue;
-        const trigger = candidate.closest("button, [role='button']") || candidate.querySelector("svg") || candidate;
-        if (active.has(trigger) || trigger.closest("[role='tooltip'], [popover]")) continue;
-        // A real usage control may be nested in a sidebar conversation row.
-        // Reject title text there, not explicit remainingPercent/usage hooks.
-        const row = candidate.closest("[data-sidebar-archive-chatgpt-id], [data-explore-row]");
-        const usageHook = candidate.closest("[data-ambient-usage-label]") || trigger.querySelector("[data-ambient-usage-label]");
-        const numericOnly = Boolean(row && !usageHook);
-        const value = (usageHook && readPercentage(usageHook, sidebar)) ?? readPercentage(candidate, sidebar, numericOnly) ?? readPercentage(trigger, sidebar, numericOnly);
-        if (value === null) continue;
-        active.add(trigger);
-        let entry = labels.get(trigger);
-        if (!entry) {
-          const label = document.createElement("span");
-          label.setAttribute(marker, "");
-          label.setAttribute("aria-hidden", "true");
-          label.style.cssText = "position:absolute;align-items:center;justify-content:center;box-sizing:border-box;visibility:visible!important;opacity:1!important;pointer-events:none!important;white-space:nowrap;font:700 18px/24px monospace!important;font-variant-numeric:tabular-nums;color:#fff!important;background:#000!important;padding:0";
-          entry = { label };
-          labels.set(trigger, entry);
-        }
-        // Never insert children or change geometry on the site's interest target.
-        // Its native hover/React lifecycle must not depend on our label's presence.
-        if (!layer.isConnected) document.documentElement.appendChild(layer);
-        if (entry.label.parentElement !== layer) layer.appendChild(entry.label);
-        if (entry.label.textContent !== value) entry.label.textContent = value;
-        // Some sidebar rows use the whole row as the interaction target. Cover
-        // its usage glyph, never the neighboring conversation title.
-        const triggerRect = trigger.getBoundingClientRect();
-        const glyph = candidate.matches("svg") ? candidate : candidate.querySelector("svg") || usageHook?.querySelector("svg") || trigger.querySelector("svg");
-        const anchor = triggerRect.width > 0 && triggerRect.width <= 64 && triggerRect.height > 0 ? trigger : glyph || usageHook || candidate;
-        place(entry, trigger, sidebar, anchor);
+    for (const meter of findMeters()) {
+      const value = readMeter(meter);
+      if (value === null) continue;
+      active.add(meter);
+      let entry = labels.get(meter);
+      if (!entry) {
+        const label = document.createElement("span");
+        label.setAttribute(marker, "");
+        label.setAttribute("aria-hidden", "true");
+        label.style.cssText = "position:absolute;align-items:center;justify-content:center;box-sizing:border-box;visibility:visible!important;opacity:1!important;pointer-events:none!important;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums;padding:0";
+        entry = { label, container: meter.closest(SIDEBAR) || document.documentElement };
+        labels.set(meter, entry);
+        if (resizeObserver) { resizeObserver.observe(meter); resizeObserver.observe(entry.container); }
       }
+      if (!layer.isConnected) document.documentElement.appendChild(layer);
+      if (entry.label.parentElement !== layer) layer.appendChild(entry.label);
+      if (entry.label.textContent !== value) entry.label.textContent = value;
+      place(entry, meter);
     }
-    for (const trigger of labels.keys()) if (!active.has(trigger) || !trigger.isConnected) remove(trigger);
+    for (const meter of [...labels.keys()]) if (!active.has(meter) || !meter.isConnected) remove(meter);
+    const hide = labels.size > 0;
+    if (meterStyle.disabled === hide) meterStyle.disabled = !hide;
   }
 
   let frame = null;
@@ -233,20 +173,42 @@
     if (frame !== null) return;
     frame = requestAnimationFrame(() => { frame = null; refresh(); });
   };
-  const observer = new MutationObserver(schedule);
-  observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["aria-label", "aria-description", "aria-valuenow", "aria-describedby", "interestfor", "data-ambient-usage-label"] });
-  const timer = setInterval(schedule, 1000); // React-only prop updates need not mutate the DOM.
+
+  // Attribute records only arrive for the two filtered attributes. Added/removed nodes inside the
+  // conversation (streaming) are ignored with one cheap ancestor check; everything else (sidebar,
+  // tooltips and menus appended to the body) schedules a single coalesced refresh.
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === "attributes") { schedule(); return; }
+      const target = record.target;
+      if (!(target instanceof Element) || !target.closest("main")) { schedule(); return; }
+    }
+  });
+  observer.observe(document.documentElement, {
+    subtree: true, childList: true, attributes: true, attributeFilter: ["aria-description", "stroke-dashoffset"],
+  });
+  resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
   window.addEventListener("resize", schedule, { passive: true });
-  window.addEventListener("scroll", schedule, { passive: true, capture: true });
-  window[namespace] = { refresh, destroy() {
-    observer.disconnect();
-    clearInterval(timer);
-    window.removeEventListener("resize", schedule);
-    window.removeEventListener("scroll", schedule, true);
-    if (frame !== null) cancelAnimationFrame(frame);
-    for (const trigger of labels.keys()) remove(trigger);
-    layer.remove();
-    delete window[namespace];
-  } };
+  // A hidden or tray window pauses frame callbacks; re-check once when it is shown or focused again.
+  // This is an event, not a timer: it costs nothing while the window sits unchanged.
+  document.addEventListener("visibilitychange", schedule);
+  window.addEventListener("focus", schedule, { passive: true });
+
+  window[namespace] = {
+    refresh,
+    get runs() { return runs; },
+    destroy() {
+      observer.disconnect();
+      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener("resize", schedule);
+      document.removeEventListener("visibilitychange", schedule);
+      window.removeEventListener("focus", schedule);
+      if (frame !== null) cancelAnimationFrame(frame);
+      for (const meter of [...labels.keys()]) remove(meter);
+      layer.remove();
+      meterStyle.remove();
+      delete window[namespace];
+    },
+  };
   refresh();
 })();

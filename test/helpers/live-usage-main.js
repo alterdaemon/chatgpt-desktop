@@ -71,7 +71,8 @@ function inspect() {
   const meter = meters[0];
   const labels = [...document.querySelectorAll("[data-chatgpt-desktop-usage-percent]")];
   const tooltip = [...document.querySelectorAll("[role='tooltip']")].some(element => /\d\s*%|%\s*\d/.test(element.textContent));
-  const state = { meters: meters.length, labels: labels.length, tooltipWithPercent: tooltip, pointerEvents: window.__usagePointerEvents || 0 };
+  const adapter = window.__chatgptDesktopSidebarUsage;
+  const state = { meters: meters.length, labels: labels.length, tooltipWithPercent: tooltip, pointerEvents: window.__usagePointerEvents || 0, runs: adapter ? adapter.runs : null };
   if (!meter) return state;
   const rect = meter.getBoundingClientRect();
   state.meterRect = { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) };
@@ -79,11 +80,20 @@ function inspect() {
   if (label) {
     const text = label.getBoundingClientRect();
     const style = getComputedStyle(label);
+    const sidebar = getComputedStyle(meter.closest("#app-shell-sidebar, aside") || document.documentElement);
+    const content = document.createRange(); content.selectNodeContents(label);
     Object.assign(state, {
       text: label.textContent,
       visible: text.width > 0 && text.height > 0 && style.visibility === "visible" && style.display !== "none",
       covers: text.left <= rect.left && text.top <= rect.top && text.right >= rect.right && text.bottom >= rect.bottom,
-      white: style.color === "rgb(255, 255, 255)", size: style.fontSize, bold: Number(style.fontWeight) >= 700,
+      bold: Number(style.fontWeight) >= 700,
+      readable: (() => {
+        const rgb = value => (value.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+        const lum = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        return Math.abs(lum(rgb(style.color)) - lum(rgb(style.backgroundColor))) > 150 && !/rgba\(.*,\s*0\)/.test(style.backgroundColor);
+      })(),
+      size: parseFloat(style.fontSize), sidebarSize: parseFloat(sidebar.fontSize), sameFamily: style.fontFamily === sidebar.fontFamily,
+      fits: content.getBoundingClientRect().width <= rect.width,
     });
   }
   return state;
@@ -110,11 +120,22 @@ app.on("browser-window-created", (_event, window) => {
       }
       // Count pointer input from here on: the idle snapshots must be taken with none.
       await run('window.__usagePointerEvents = 0; addEventListener("pointermove", () => { window.__usagePointerEvents++; }, true);');
-      const idle = await waitFor(state => state.meters > 0 && state.labels > 0, 40000);
+      let idle = await waitFor(state => state.meters > 0 && state.labels > 0, 40000);
+      if (idle.meters === 0) {
+        // The site occasionally does not mount the meter on the first load; give it one fresh load.
+        result.retried = true;
+        wc.reload();
+        await delay(3000);
+        await run('window.__usagePointerEvents = 0; addEventListener("pointermove", () => { window.__usagePointerEvents++; }, true);').catch(() => {});
+        idle = await waitFor(state => state.meters > 0 && state.labels > 0, 40000);
+      }
       result.meterRendered = idle.meters > 0;
       if (!result.meterRendered) { result.error = "meter-not-rendered"; finish(3); return; }
       await delay(2500);
       result.idle = await snapshot();
+      // The adapter must not do any work while the real page sits idle (no polling).
+      await delay(6000);
+      result.idleLater = await snapshot();
 
       const point = { x: result.idle.meterRect.x + Math.round(result.idle.meterRect.w / 2), y: result.idle.meterRect.y + Math.round(result.idle.meterRect.h / 2) };
       window.focus();

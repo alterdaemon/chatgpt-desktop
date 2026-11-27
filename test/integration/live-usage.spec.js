@@ -35,15 +35,19 @@ test("the real usage meter shows its percentage at idle, during and after hover,
       expect(state.text, `${where}: remaining percentage`).toBe("1%");
       expect(state.visible, `${where}: visible`).toBe(true);
       expect(state.covers, `${where}: replaces the diamond in place`).toBe(true);
-      expect(state.white, `${where}: white`).toBe(true);
-      expect(state.size, `${where}: size`).toBe("18px");
+      expect(state.readable, `${where}: high-contrast text on an opaque backing that hides the diamond`).toBe(true);
       expect(state.bold, `${where}: bold`).toBe(true);
+      expect(state.sameFamily, `${where}: same font family as the sidebar`).toBe(true);
+      expect(state.size, `${where}: same size as the sidebar text`).toBe(Math.min(16, state.sidebarSize));
+      expect(state.fits, `${where}: the whole text fits inside the meter`).toBe(true);
     };
 
     // The decisive case: no pointer input at all, so the hover tooltip does not exist.
     expect(result.idle.pointerEvents, "idle snapshot must be taken with no pointer input").toBe(0);
     expect(result.idle.tooltipWithPercent, "idle: the site's tooltip must not be mounted").toBe(false);
     shown(result.idle, "idle");
+    expect(result.idleLater.runs, "no refresh work while the real page is idle (no polling)").toBe(result.idle.runs);
+    shown(result.idleLater, "still idle");
 
     expect(result.hover.tooltipWithPercent, "hovering must still open the site's original tooltip").toBe(true);
     shown(result.hoverLater, "while hovering");
