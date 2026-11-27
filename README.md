@@ -343,3 +343,9 @@ Bug reports and practical feature requests are welcome through GitHub Issues.
 Before opening a new issue, please check whether it already exists and include enough detail to reproduce the problem.
 
 This project is Linux-focused, and support and feature work will stay practical and aligned with that scope.
+
+## Disclaimer
+
+This is an unofficial, community project. It is not affiliated with, endorsed by, or sponsored by OpenAI. "OpenAI" and "ChatGPT" are trademarks of OpenAI.
+
+The app only opens the official ChatGPT website (`https://chatgpt.com`) in a desktop window and does not include or redistribute any OpenAI software. Your use of ChatGPT remains subject to OpenAI's terms and policies.
