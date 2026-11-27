@@ -5,18 +5,22 @@ All notable changes to this project will be documented in this file.
 ## [1.8.0] - 2026-11-27
 
 ### Added
-- Sidebar usage percentage: the usage meter's remaining percentage is shown on the meter without hovering. It uses the sidebar's own font, hides the site's animated meter icon while shown, and costs nothing while the page is idle (no timer, polling or scroll listener).
-- Vimium-style link hints now cover the whole window: sidebar, header, conversation and composer.
-- `j`, `k`, `d`, `u`, `gg` and `G` scroll the region you are working in (focused area, then the one under the pointer, then the conversation), including the sidebar chat list.
+- ChatGPT Settings: `Ctrl+,` (comma) opens Settings while the app window is focused, including while typing, and the Application menu has a **ChatGPT Settings** item (disabled on sign-in pages). Settings opens within the current page, so zoom, fonts and custom styling are kept without a flash.
+- Sidebar usage percentage: when ChatGPT shows its sidebar usage indicator, the remaining percentage now replaces the diamond without hovering, in the sidebar's own font. The original hover tooltip still works. It costs nothing while the page is idle (no timer, polling or scroll listener), and the site's animated meter icon is hidden while the percentage is shown.
+- Vimium-style link hints now cover the whole window: sidebar (chats and navigation), header, conversation and composer.
+- `j`, `k`, `d`, `u`, `gg` and `G` scroll the region you are working in (focused area, then the one under the pointer, then the conversation), so the sidebar chat list can be scrolled from the keyboard.
+- `npm run build:diagnostic` builds an isolated diagnostic Flatpak for investigating rendering problems. It is not part of the shipped app.
 
 ### Changed
-- The Settings shortcut is now `Ctrl+,`. Settings opens within the current page, so zoom, fonts and custom styling are kept without a flash.
-- `gi` prefers the message composer, and link hints are collected fresh each time they are opened.
-- Rewrote the example stylesheet (`resources/examples/styles/custom.css`) for the current ChatGPT site: no rounded corners, no fade overlays or scroll-button shadow, no "ChatGPT can make mistakes" disclaimer, and a darker dark theme. It selects the theme through `html[data-theme]`, so if you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules for elements the site no longer has were removed. Tests now check that formatted replies stay visible with it.
+- `gi` prefers the message composer over other editable fields.
+- Link hints are collected fresh each time hint mode is entered, so a changed sidebar or menu is never labelled with stale targets.
+- Rewrote the example stylesheet (`resources/examples/styles/custom.css`) for the current ChatGPT site. It removes rounded corners (avatars stay circular), the fade overlays on the conversation, composer and sidebar chat list, and the scroll-button shadow. It hides the "ChatGPT can make mistakes" disclaimer and its space, gives the dark theme a black sidebar and near-black chat surface with a slightly lighter composer, and keeps the title bar opaque on conversations only.
+- The example stylesheet selects the theme through `html[data-theme]`. If you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules for elements the site no longer has were removed: the message width limit, the composer grid layout and the tighter message spacing.
+- Added tests for link hints, scrolling, Settings, the usage percentage and the example stylesheet in both themes (formatted replies stay visible), plus a live canary that names the selector that stops matching when the site changes.
 
 ### Fixed
 - The app sends a browser-compatible user agent, so ChatGPT serves interactive responses instead of a text-only fallback.
-- Clicking the chat background and pressing `f` no longer draws a focus ring around the conversation.
+- Clicking the chat background and pressing `f` no longer draws a focus ring around the conversation, including during hint mode and with an older custom stylesheet.
 
 ## [1.7.0] - 2026-11-27
 
