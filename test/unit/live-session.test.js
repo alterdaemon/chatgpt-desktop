@@ -31,6 +31,20 @@ test("accepts host-only and chunked authentication cookies", () => {
   assert.equal(parsed.length, 2);
 });
 
+test("preserves the first-party device context without importing challenge or analytics cookies", () => {
+  const parsed = parseSessionCookies(JSON.stringify([
+    cookie,
+    { ...cookie, name: "oai-did", httpOnly: false },
+    { ...cookie, name: "oai-sc", httpOnly: true },
+  ]));
+  assert.equal(parsed[1].httpOnly, false);
+  assert.equal(parsed[2].httpOnly, true);
+  for (const name of ["cf_clearance", "__cf_bm", "_dd_s"]) {
+    assert.throws(() => parseSessionCookies(JSON.stringify([cookie, { ...cookie, name }])));
+  }
+  assert.throws(() => parseSessionCookies(JSON.stringify([{ ...cookie, name: "oai-did" }])));
+});
+
 test("rejects malformed session bootstrap without including its contents in errors", () => {
   for (const source of ["fixture-private-value", "{}", "[]", "[null]"]) {
     assert.throws(() => parseSessionCookies(source), (error) => !error.message.includes("fixture-private-value"));
