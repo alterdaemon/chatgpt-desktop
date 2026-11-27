@@ -4,17 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [1.8.0] - 2026-11-27
 
-### Fixed
-- The sidebar usage percentage now shows without hovering and costs nothing while the page is idle (no timer, polling or scroll listener). It uses the sidebar's own font and hides the site's animated meter icon while shown.
-- The app now sends a browser-compatible user agent, so ChatGPT serves interactive responses instead of a text-only fallback.
-- Vimium-style link hints now cover the whole window: sidebar, header, conversation and composer. Hints are collected fresh each time they are opened.
-- `j`, `k`, `d`, `u`, `gg` and `G` scroll the region you are working in (focused area, then the one under the pointer, then the conversation), including the sidebar chat list. `gi` prefers the message composer.
-- Clicking the chat background and pressing `f` no longer draws a focus ring around the conversation.
-- The Settings shortcut is now `Ctrl+,`. Settings opens within the current page, so zoom, fonts and custom styling are kept without a flash.
+### Added
+- Sidebar usage percentage: the usage meter's remaining percentage is shown on the meter without hovering. It uses the sidebar's own font, hides the site's animated meter icon while shown, and costs nothing while the page is idle (no timer, polling or scroll listener).
+- Vimium-style link hints now cover the whole window: sidebar, header, conversation and composer.
+- `j`, `k`, `d`, `u`, `gg` and `G` scroll the region you are working in (focused area, then the one under the pointer, then the conversation), including the sidebar chat list.
 
 ### Changed
-- Rewrote the example stylesheet (`resources/examples/styles/custom.css`) for the current ChatGPT site: no rounded corners, no fade overlays or scroll-button shadow, no "ChatGPT can make mistakes" disclaimer, and a darker dark theme. It selects the theme through `html[data-theme]`, so if you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules for elements the site no longer has were removed.
-- Added tests that formatted replies (headings, lists, code, tables, quotes) stay visible with the example stylesheet.
+- The Settings shortcut is now `Ctrl+,`. Settings opens within the current page, so zoom, fonts and custom styling are kept without a flash.
+- `gi` prefers the message composer, and link hints are collected fresh each time they are opened.
+- Rewrote the example stylesheet (`resources/examples/styles/custom.css`) for the current ChatGPT site: no rounded corners, no fade overlays or scroll-button shadow, no "ChatGPT can make mistakes" disclaimer, and a darker dark theme. It selects the theme through `html[data-theme]`, so if you copied the old example to `~/.config/chatgpt-desktop/styles/custom.css`, copy the new one over it. Rules for elements the site no longer has were removed. Tests now check that formatted replies stay visible with it.
+
+### Fixed
+- The app sends a browser-compatible user agent, so ChatGPT serves interactive responses instead of a text-only fallback.
+- Clicking the chat background and pressing `f` no longer draws a focus ring around the conversation.
 
 ## [1.7.0] - 2026-11-27
 
