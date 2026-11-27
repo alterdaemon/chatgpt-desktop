@@ -46,7 +46,7 @@ To build either Flatpak track locally, or install the official release bundle, m
 sudo apt update
 sudo apt install -y flatpak flatpak-builder desktop-file-utils appstream
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install --user flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.electronjs.Electron2.BaseApp//24.08
+flatpak install --user flathub org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08 org.electronjs.Electron2.BaseApp//26.08
 ```
 
 After the system packages are installed, you can bootstrap the Flatpak remote and runtimes with:
@@ -57,7 +57,7 @@ npm run setup:flatpak
 
 By default this installs runtimes for the current user. If you prefer a system-wide install, run `FLATPAK_INSTALL_SCOPE=system npm run setup:flatpak`.
 
-Both the release bundle flow and the Flathub packaging track use these same runtimes.
+The release bundle flow uses these runtimes. The Flathub packaging track is paused and still pins its own older runtime and Electron version.
 
 ## Run the app
 
@@ -183,6 +183,30 @@ These bindings are ignored while you are typing in the ChatGPT prompt or another
 
 You can disable or re-enable this feature from the application menu, the tray menu, or by editing `vimiumNavigationEnabled` in `~/.config/chatgpt-desktop/settings.json`.
 
+## Navigation And Permissions
+
+The app window only navigates to HTTPS pages on `chatgpt.com`, `auth.openai.com`, and the Google, Microsoft and Apple sign-in hosts. Every other link, redirect or new-window request opens in your default browser instead.
+
+If your account signs in through another provider, such as a company single sign-on service, add its host name to `~/.config/chatgpt-desktop/settings.json`:
+
+```json
+{
+  "trustedNavigationHosts": ["sso.example.com"]
+}
+```
+
+Entries must be plain host names (no scheme, port, path, wildcard or IP address) and also cover their subdomains.
+
+Only the ChatGPT page can use the microphone, camera, notifications, clipboard writes and fullscreen. All other web permissions are denied, and USB, HID, serial and Bluetooth device access is always denied. Custom CSS, custom scripts and Vimium-style navigation run only on ChatGPT pages, not on sign-in pages.
+
+`Ctrl+Q` quits the app while its window is focused. It is not a system-wide shortcut.
+
+## Display Backend
+
+The app runs on X11 on X11 sessions and natively on Wayland on Wayland sessions, with no options needed. To force X11 on a Wayland session, start the app with `--ozone-platform=x11`. On Wayland, window placement when the window is revealed is decided by the compositor, and the global show/hide shortcut needs a desktop that provides the GlobalShortcuts portal.
+
+Packaged builds store cookies encrypted through the system keyring when one is available. If your desktop asks to unlock a keyring at start, that is the reason.
+
 ## Zoom
 
 The app supports manual zoom controls from the app menu and tray menu.
@@ -276,11 +300,11 @@ Flatpak-specific behavior notes:
 
 ## GitHub Release Flow
 
-Pushing a version tag (for example `v1.6.0`) triggers the GitHub Actions release workflow, runs the test suites, builds Linux artifacts, and publishes a GitHub Release with attached files.
+Pushing a version tag (for example `v1.7.0`) triggers the GitHub Actions release workflow, runs the test suites, builds Linux artifacts, and publishes a GitHub Release with attached files.
 
 That workflow currently publishes the release-oriented `.flatpak` bundle; the Flathub packaging track is maintained separately in-repo for source-build validation and submission work.
 
-The workflow runs on GitHub-hosted Ubuntu and produces:
+The workflow runs tests, builds packages and publishes the release as three separate jobs, so only the final publishing job can write to the repository. It produces:
 
 - `.AppImage` for most modern Linux distributions
 - `.deb` for Debian stable / Ubuntu `amd64`
@@ -288,10 +312,10 @@ The workflow runs on GitHub-hosted Ubuntu and produces:
 
 ```bash
 git add .
-git commit -m "release: publish chatgpt-desktop v1.6.0"
-git tag v1.6.0
+git commit -m "release: publish chatgpt-desktop v1.7.0"
+git tag v1.7.0
 git push origin main
-git push origin v1.6.0
+git push origin v1.7.0
 ```
 
 The tag push is what triggers the release workflow.

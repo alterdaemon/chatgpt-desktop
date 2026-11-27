@@ -2,7 +2,21 @@
 set -euo pipefail
 
 FLATHUB_REMOTE_URL="https://flathub.org/repo/flathub.flatpakrepo"
-RUNTIME_VERSION="24.08"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANIFEST_PATH="${SCRIPT_DIR}/io.github.alterdaemon.chatgpt-desktop.yml"
+
+# The release manifest is the single source of truth for the runtime branch.
+read_manifest_value() {
+  sed -n "s/^$1: *\"\{0,1\}\([^\"]*\)\"\{0,1\} *$/\1/p" "${MANIFEST_PATH}" | head -n 1
+}
+
+RUNTIME_VERSION="$(read_manifest_value runtime-version)"
+BASE_VERSION="$(read_manifest_value base-version)"
+
+if [ -z "${RUNTIME_VERSION}" ] || [ "${RUNTIME_VERSION}" != "${BASE_VERSION}" ]; then
+  printf 'Release manifest runtime-version (%s) and base-version (%s) must be set and equal.\n' "${RUNTIME_VERSION}" "${BASE_VERSION}" >&2
+  exit 1
+fi
 INSTALL_SCOPE="${FLATPAK_INSTALL_SCOPE:-user}"
 
 show_install_hint() {

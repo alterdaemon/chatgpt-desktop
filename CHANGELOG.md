@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-11-27
+
+### Security
+- Updated Electron from 37 (end of life) to 45, and updated electron-builder and Playwright. All high and critical `npm audit` findings are resolved.
+- The main window now navigates only to HTTPS pages on ChatGPT, OpenAI sign-in, Google, Microsoft and Apple sign-in hosts, and hosts listed in the new `trustedNavigationHosts` setting. Any other destination, including server redirects, opens in the system browser instead.
+- Web permissions are now denied by default. Only the ChatGPT page can use microphone and camera, notifications, clipboard writes and fullscreen. USB, HID, serial and Bluetooth device access is always denied.
+- Custom CSS, custom scripts, Vimium-style navigation and spellcheck adjustments now run only on ChatGPT pages, never on sign-in or other pages.
+- Packaged builds disable run-as-Node mode, `NODE_OPTIONS`, Node.js inspector flags and loading app code outside the packaged archive, and encrypt the cookie store.
+
+### Added
+- `trustedNavigationHosts` setting for extra HTTPS sign-in hosts, such as a company single sign-on provider.
+- Weekly automated dependency update proposals.
+
+### Changed
+- The GitHub-release Flatpak now uses the Freedesktop 26.08 runtime and Electron BaseApp. Run `npm run setup:flatpak` to install them.
+- On Wayland sessions the app now runs natively on Wayland, and on X11 sessions it runs on X11. Window placement on reveal is chosen by the compositor on Wayland. Use `--ozone-platform=x11` to force X11.
+- `Ctrl+Q` now quits only while the app window is focused. It no longer works as a system-wide shortcut.
+- Release builds are produced by a least-privilege pipeline: tests, packaging and publishing run as separate jobs and only publishing can write to the repository.
+- The Flathub packaging track is paused and no longer updated.
+
+### Notes
+- Cookie encryption is a one-way change. Going back to an older packaged version after upgrading may require signing in again.
+
 ## [1.6.0] - 2026-11-27
 
 ### Added

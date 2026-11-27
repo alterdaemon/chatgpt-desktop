@@ -5,40 +5,37 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+# No permission by default. Each job below requests only what it needs.
+permissions: {}
 
 jobs:
-  build-and-release:
+  # Runs dependency code and receives the ChatGPT test credentials, so it has
+  # read-only repository access and cannot publish anything.
+  test:
     runs-on: ${{ fromJSON(vars.CHATGPT_TRUSTED_RUNNER || '["ubuntu-latest"]') }}
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
 
-      - name: Install Flatpak tooling
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder desktop-file-utils appstream xvfb
-
-      - name: Add Flathub remote
-        run: sudo flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-      - name: Install Flatpak runtimes
-        run: |
-          sudo flatpak install --system --noninteractive flathub \
-            org.freedesktop.Platform//24.08 \
-            org.freedesktop.Sdk//24.08 \
-            org.electronjs.Electron2.BaseApp//24.08
+      - name: Install display server
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Download Electron binary
+        run: npx install-electron --no
 
       - name: Configure Electron sandbox
         run: |
@@ -52,6 +49,39 @@ jobs:
           CHATGPT_TEST_PASSWORD: ${{ secrets.CHATGPT_TEST_PASSWORD }}
           CHATGPT_TEST_SESSION_COOKIES: ${{ secrets.CHATGPT_TEST_SESSION_COOKIES }}
 
+  # Builds packages with read-only access and no secrets.
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Flatpak tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder desktop-file-utils appstream
+
+      - name: Install Flatpak runtimes
+        run: sudo FLATPAK_INSTALL_SCOPE=system ./packaging/flatpak/release/setup-flatpak.sh
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download Electron binary
+        run: npx install-electron --no
+
       - name: Build Linux packages
         run: npm run build:linux
 
@@ -61,8 +91,32 @@ jobs:
       - name: Build Flatpak bundle
         run: npm run build:flatpak
 
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-artifacts
+          if-no-files-found: error
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.flatpak
+
+  # Only job with write access. It never checks out or executes project code.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-artifacts
+          path: dist
+
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           generate_release_notes: true
           files: |

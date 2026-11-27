@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
   showShortcut: "CommandOrControl+Shift+Space",
   zoomFactor: 1,
   vimiumNavigationEnabled: true,
+  trustedNavigationHosts: [],
 };
 
 test.describe("menus, zoom and spellcheck", () => {

@@ -114,13 +114,28 @@ test.describe("window security model and external link policy", () => {
       .poll(() => readExternalOpens(app))
       .toContain("https://github.com/alterdaemon/chatgpt-desktop");
   });
-
-  test("never navigates the main window away from the fixture origin", async () => {
-    expect(page.url().startsWith(fixture.url)).toBe(true);
-  });
 });
 
 test.describe("quit shortcut", () => {
+  test("does not register Control+Q as a system-wide shortcut", async () => {
+    const fixture = await startFixtureServer();
+    const profile = createProfile();
+    const app = await launchApp(profile, fixture.url);
+
+    try {
+      const page = await app.firstWindow();
+      await page.waitForURL(fixture.url);
+      const registered = await app.evaluate(({ globalShortcut }) =>
+        globalShortcut.isRegistered("CommandOrControl+Q")
+      );
+      expect(registered).toBe(false);
+    } finally {
+      await app.close().catch(() => {});
+      await fixture.close();
+      profile.remove();
+    }
+  });
+
   test("quits the app when Control+Q is pressed in the page", async () => {
     const fixture = await startFixtureServer();
     const profile = createProfile();

@@ -9,7 +9,10 @@ const fs = require("fs");
 const {
   clampZoomFactor,
   getInitialUrl,
+  getPermissionDecision,
   isAllowedExternalUrl,
+  isApplicationUrl,
+  isTrustedNavigationUrl,
   loadScriptManifest,
   normalizeSettings,
 } = require("./app-logic");
@@ -33,6 +36,9 @@ let tray = null;
 let spellCheckEnabled = false;
 let zoomFactor = 1;
 let vimiumNavigationEnabled = true;
+let trustedNavigationHosts = [];
+const initialUrl = getInitialUrl(process.env);
+const deniedPermissionsLogged = new Set();
 const DEFAULT_SHOW_SHORTCUT = "CommandOrControl+Shift+Space";
 let showShortcut = DEFAULT_SHOW_SHORTCUT;
 const REPO_URL = "https://github.com/alterdaemon/chatgpt-desktop";
@@ -129,7 +135,9 @@ function loadSettings() {
       showShortcut,
       zoomFactor,
       vimiumNavigationEnabled,
+      trustedNavigationHosts,
     });
+    trustedNavigationHosts = settings.trustedNavigationHosts;
     spellCheckEnabled = settings.spellCheckEnabled;
     showShortcut = settings.showShortcut;
     zoomFactor = settings.zoomFactor;
@@ -147,12 +155,97 @@ function saveSettings() {
           showShortcut,
           zoomFactor,
           vimiumNavigationEnabled,
+          trustedNavigationHosts,
         },
         null,
         2
       ) + "\n"
     );
   } catch {}
+}
+
+function isOnApplicationPage(window = mainWindow) {
+  if (!window || window.isDestroyed()) {
+    return false;
+  }
+
+  try {
+    return isApplicationUrl(window.webContents.getURL(), initialUrl);
+  } catch {
+    return false;
+  }
+}
+
+function handOffToSystemBrowser(url) {
+  if (isAllowedExternalUrl(url)) {
+    shell.openExternal(url).catch(() => {});
+  }
+}
+
+function logDeniedPermission(permission) {
+  if (!deniedPermissionsLogged.has(permission)) {
+    deniedPermissionsLogged.add(permission);
+    console.warn(`Denied web permission request: ${permission}`);
+  }
+}
+
+function installSessionSecurity(window) {
+  const { session } = window.webContents;
+
+  session.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const granted = getPermissionDecision({
+      permission,
+      requestingUrl: details && details.requestingUrl,
+      topLevelUrl: webContents.getURL(),
+      initialUrl,
+    });
+    if (!granted) {
+      logDeniedPermission(permission);
+    }
+    callback(granted);
+  });
+
+  session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) =>
+    getPermissionDecision({
+      permission,
+      requestingUrl: (details && details.requestingUrl) || requestingOrigin,
+      topLevelUrl: webContents ? webContents.getURL() : "",
+      initialUrl,
+    })
+  );
+
+  session.setDevicePermissionHandler(() => false);
+  session.on("select-hid-device", (event, details, callback) => {
+    event.preventDefault();
+    callback();
+  });
+  session.on("select-usb-device", (event, details, callback) => {
+    event.preventDefault();
+    callback();
+  });
+  session.on("select-serial-port", (event, portList, webContents, callback) => {
+    event.preventDefault();
+    callback("");
+  });
+  window.webContents.on("select-bluetooth-device", (event, deviceList, callback) => {
+    event.preventDefault();
+    callback("");
+  });
+}
+
+function guardNavigation(window) {
+  const guard = (event, url) => {
+    const target = url || event.url;
+    if (isTrustedNavigationUrl(target, { initialUrl, trustedHosts: trustedNavigationHosts })) {
+      return;
+    }
+
+    event.preventDefault();
+    handOffToSystemBrowser(target);
+  };
+
+  window.webContents.on("will-navigate", guard);
+  window.webContents.on("will-redirect", guard);
 }
 
 function temporarilyShowOnAllWorkspaces(window) {
@@ -372,6 +465,10 @@ function applySpellCheckEnabled(window = mainWindow) {
     session.setSpellCheckerEnabled(spellCheckEnabled);
   }
 
+  if (!isOnApplicationPage(window)) {
+    return Promise.resolve();
+  }
+
   return window.webContents
     .executeJavaScript(
       `(() => {
@@ -420,7 +517,7 @@ function ensureVimiumNavigationModule(window = mainWindow) {
 }
 
 function applyVimiumNavigationEnabled(window = mainWindow) {
-  if (!window || window.isDestroyed() || !cachedVimiumNavigationModule) {
+  if (!window || window.isDestroyed() || !cachedVimiumNavigationModule || !isOnApplicationPage(window)) {
     return Promise.resolve();
   }
 
@@ -659,14 +756,15 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isAllowedExternalUrl(url)) {
-      shell.openExternal(url).catch(() => {});
-    }
+    handOffToSystemBrowser(url);
     return { action: "deny" };
   });
 
+  installSessionSecurity(mainWindow);
+  guardNavigation(mainWindow);
+
   const injectScripts = async () => {
-    if (!mainWindow || mainWindow.isDestroyed() || cachedScripts.length === 0) {
+    if (!mainWindow || mainWindow.isDestroyed() || cachedScripts.length === 0 || !isOnApplicationPage()) {
       return;
     }
 
@@ -723,7 +821,7 @@ function createWindow() {
     await runCustomizationStep("spellcheck", () => applySpellCheckEnabled(mainWindow));
     await runCustomizationStep("Vimium navigation", () => applyVimiumNavigationEnabled(mainWindow));
 
-    if (cachedCss) {
+    if (cachedCss && isOnApplicationPage()) {
       await runCustomizationStep("custom CSS", () => mainWindow.webContents.insertCSS(cachedCss));
     }
     await runCustomizationStep("custom scripts", () => injectScripts());
@@ -760,10 +858,6 @@ app.whenReady().then(() => {
   createAppMenu();
   createWindow();
   createTray();
-
-  registerGlobalShortcut("CommandOrControl+Q", () => {
-    requestQuit();
-  }, "quit");
 
   registerGlobalShortcut(showShortcut, () => {
     toggleMainWindow();

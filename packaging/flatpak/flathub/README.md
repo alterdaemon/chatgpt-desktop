@@ -1,5 +1,8 @@
 # Flathub Track
 
+> [!NOTE]
+> This track is paused. It still pins an older Electron release and the Freedesktop 24.08 runtime, which is end of life, and it is not updated or validated by CI until Flathub work resumes. Do not submit it as is.
+
 This directory contains the Flathub-oriented Flatpak packaging for ChatGPT Desktop.
 
 Unlike the release bundle flow in `packaging/flatpak/release/`, this track:

@@ -104,6 +104,7 @@ test.describe("without customization files", () => {
       showShortcut: "CommandOrControl+Shift+Space",
       zoomFactor: 1,
       vimiumNavigationEnabled: true,
+      trustedNavigationHosts: [],
     });
   });
 });

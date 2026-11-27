@@ -4,6 +4,93 @@ const fs = require("fs");
 const DEFAULT_INITIAL_URL = "https://chatgpt.com";
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["https:", "http:"]);
 
+const BUILT_IN_TRUSTED_HOSTS = [
+  "chatgpt.com",
+  "auth.openai.com",
+  "accounts.google.com",
+  "login.microsoftonline.com",
+  "login.live.com",
+  "account.live.com",
+  "appleid.apple.com",
+];
+const ALLOWED_PERMISSIONS = new Set([
+  "media",
+  "notifications",
+  "clipboard-sanitized-write",
+  "fullscreen",
+]);
+const HOST_PATTERN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+
+function normalizeTrustedHosts(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const hosts = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") {
+      continue;
+    }
+    const host = entry.trim().toLowerCase();
+    // Reject IP literals, wildcards, schemes, ports and paths: only plain DNS names.
+    if (!HOST_PATTERN.test(host) || /^[0-9.]+$/.test(host) || !host.includes(".") && host !== "localhost") {
+      continue;
+    }
+    if (!hosts.includes(host)) {
+      hosts.push(host);
+    }
+  }
+  return hosts;
+}
+
+function hostMatches(host, entry) {
+  return host === entry || host.endsWith(`.${entry}`);
+}
+
+function parseUrl(rawUrl) {
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+}
+
+function isApplicationUrl(rawUrl, initialUrl = DEFAULT_INITIAL_URL) {
+  const url = parseUrl(rawUrl);
+  const application = parseUrl(initialUrl);
+  return Boolean(url && application && url.origin === application.origin);
+}
+
+function isTrustedNavigationUrl(rawUrl, { initialUrl = DEFAULT_INITIAL_URL, trustedHosts = [] } = {}) {
+  const url = parseUrl(rawUrl);
+  if (!url) {
+    return false;
+  }
+
+  if (isApplicationUrl(rawUrl, initialUrl)) {
+    return true;
+  }
+
+  // Plain HTTP is only accepted when the app itself was pointed at an HTTP
+  // loopback fixture, which getInitialUrl() allows under NODE_ENV=test only.
+  const application = parseUrl(initialUrl);
+  const allowInsecure = Boolean(application && application.protocol === "http:");
+  if (url.protocol !== "https:" && !(allowInsecure && url.protocol === "http:")) {
+    return false;
+  }
+
+  const host = url.hostname.toLowerCase();
+  return [...BUILT_IN_TRUSTED_HOSTS, ...trustedHosts].some((entry) => hostMatches(host, entry));
+}
+
+function getPermissionDecision({ permission, requestingUrl, topLevelUrl, initialUrl = DEFAULT_INITIAL_URL }) {
+  return (
+    ALLOWED_PERMISSIONS.has(permission) &&
+    isApplicationUrl(requestingUrl, initialUrl) &&
+    isApplicationUrl(topLevelUrl, initialUrl)
+  );
+}
+
 function clampZoomFactor(value) {
   return Math.min(3, Math.max(0.5, value));
 }
@@ -29,6 +116,10 @@ function normalizeSettings(settings, defaults) {
 
   if (typeof settings.vimiumNavigationEnabled === "boolean") {
     normalized.vimiumNavigationEnabled = settings.vimiumNavigationEnabled;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(settings, "trustedNavigationHosts")) {
+    normalized.trustedNavigationHosts = normalizeTrustedHosts(settings.trustedNavigationHosts);
   }
 
   return normalized;
@@ -78,10 +169,15 @@ function getInitialUrl(environment = process.env) {
 }
 
 module.exports = {
+  BUILT_IN_TRUSTED_HOSTS,
   DEFAULT_INITIAL_URL,
   clampZoomFactor,
   getInitialUrl,
+  getPermissionDecision,
   isAllowedExternalUrl,
+  isApplicationUrl,
+  isTrustedNavigationUrl,
   loadScriptManifest,
   normalizeSettings,
+  normalizeTrustedHosts,
 };

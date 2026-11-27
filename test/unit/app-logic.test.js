@@ -7,9 +7,13 @@ const {
   DEFAULT_INITIAL_URL,
   clampZoomFactor,
   getInitialUrl,
+  getPermissionDecision,
   isAllowedExternalUrl,
+  isApplicationUrl,
+  isTrustedNavigationUrl,
   loadScriptManifest,
   normalizeSettings,
+  normalizeTrustedHosts,
 } = require("../../app-logic");
 
 const defaults = {
@@ -202,4 +206,105 @@ test("gives identical content identical signatures and orders names with localeC
     assert.notEqual(manifest[0].signature, manifest[2].signature);
     assert.equal(manifest[0].script, "window.same = true;");
   });
+});
+
+const fixtureUrl = "http://127.0.0.1:4010/";
+
+test("normalizes trusted navigation hosts to plain lowercase DNS names", () => {
+  assert.deepEqual(normalizeTrustedHosts(["SSO.Example.com", " sso.example.com ", "idp.corp.test"]), [
+    "sso.example.com",
+    "idp.corp.test",
+  ]);
+  assert.deepEqual(
+    normalizeTrustedHosts([
+      "https://evil.test",
+      "*.example.com",
+      "10.0.0.1",
+      "example.com/path",
+      "example.com:8443",
+      "",
+      42,
+      null,
+      "localhost",
+    ]),
+    ["localhost"]
+  );
+  assert.deepEqual(normalizeTrustedHosts("example.com"), []);
+});
+
+test("settings keep a validated trusted host list and omit it when absent", () => {
+  assert.deepEqual(
+    normalizeSettings({ trustedNavigationHosts: ["SSO.Example.com", "10.0.0.1"] }, defaults).trustedNavigationHosts,
+    ["sso.example.com"]
+  );
+  assert.equal("trustedNavigationHosts" in normalizeSettings({}, defaults), false);
+});
+
+test("treats only the exact application origin as the application", () => {
+  assert.equal(isApplicationUrl("https://chatgpt.com/c/1"), true);
+  assert.equal(isApplicationUrl("https://auth.openai.com/"), false);
+  assert.equal(isApplicationUrl("http://chatgpt.com/"), false);
+  assert.equal(isApplicationUrl("https://sora.chatgpt.com/"), false);
+  assert.equal(isApplicationUrl("not a url"), false);
+  assert.equal(isApplicationUrl(`${fixtureUrl}x`, fixtureUrl), true);
+});
+
+test("allows navigation only to HTTPS trusted hosts and their subdomains", () => {
+  const options = { trustedHosts: ["sso.example.com"] };
+  for (const url of [
+    "https://chatgpt.com/",
+    "https://sora.chatgpt.com/",
+    "https://auth.openai.com/authorize",
+    "https://accounts.google.com/o/oauth2",
+    "https://login.microsoftonline.com/",
+    "https://appleid.apple.com/auth",
+    "https://sso.example.com/login",
+    "https://idp.sso.example.com/login",
+  ]) {
+    assert.equal(isTrustedNavigationUrl(url, options), true, url);
+  }
+
+  for (const url of [
+    "http://chatgpt.com/",
+    "https://evilchatgpt.com/",
+    "https://chatgpt.com.example.net/",
+    "https://openai.com/",
+    "https://example.com/",
+    "file:///etc/passwd",
+    "javascript:alert(1)",
+    "mailto:a@b.test",
+    "garbage",
+  ]) {
+    assert.equal(isTrustedNavigationUrl(url, options), false, url);
+  }
+});
+
+test("accepts plain HTTP trusted hosts only in the loopback test fixture mode", () => {
+  const options = { initialUrl: fixtureUrl, trustedHosts: ["localhost"] };
+  assert.equal(isTrustedNavigationUrl(`${fixtureUrl}page`, options), true);
+  assert.equal(isTrustedNavigationUrl("http://localhost:4011/", options), true);
+  assert.equal(isTrustedNavigationUrl("http://example.com/", options), false);
+  assert.equal(isTrustedNavigationUrl("http://localhost:4011/", { trustedHosts: ["localhost"] }), false);
+});
+
+test("grants only the supported permissions to the top-level application origin", () => {
+  const base = { requestingUrl: "https://chatgpt.com/c/1", topLevelUrl: "https://chatgpt.com/" };
+  for (const permission of ["media", "notifications", "clipboard-sanitized-write", "fullscreen"]) {
+    assert.equal(getPermissionDecision({ ...base, permission }), true, permission);
+  }
+  for (const permission of ["geolocation", "midi", "display-capture", "clipboard-read", "openExternal", "usb", "unknown"]) {
+    assert.equal(getPermissionDecision({ ...base, permission }), false, permission);
+  }
+  assert.equal(
+    getPermissionDecision({ permission: "media", requestingUrl: "https://auth.openai.com/", topLevelUrl: "https://chatgpt.com/" }),
+    false
+  );
+  assert.equal(
+    getPermissionDecision({ permission: "media", requestingUrl: "https://chatgpt.com/", topLevelUrl: "https://auth.openai.com/" }),
+    false
+  );
+  assert.equal(
+    getPermissionDecision({ permission: "notifications", requestingUrl: "https://ads.example.com/", topLevelUrl: "https://chatgpt.com/" }),
+    false
+  );
 });

@@ -14,6 +14,12 @@ function startFixtureServer(fixtureName = "chat-fixture.html") {
       return;
     }
 
+    if (request.url.startsWith("/redirect-out")) {
+      response.writeHead(302, { location: "https://untrusted.example.test/redirected" });
+      response.end();
+      return;
+    }
+
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(fixture);
   });
@@ -24,6 +30,8 @@ function startFixtureServer(fixtureName = "chat-fixture.html") {
       const { port } = server.address();
       resolve({
         url: `http://127.0.0.1:${port}/`,
+        // Same server under a different origin, used as a second trusted host.
+        altUrl: `http://localhost:${port}/`,
         close: () => new Promise((closeResolve) => server.close(closeResolve)),
       });
     });

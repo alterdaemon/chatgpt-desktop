@@ -17,6 +17,13 @@ for command_name in desktop-file-validate appstreamcli flatpak-builder; do
   fi
 done
 
+runtime_version="$(sed -n 's/^runtime-version: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' "${SCRIPT_DIR}/${APP_ID}.yml" | head -n 1)"
+base_version="$(sed -n 's/^base-version: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' "${SCRIPT_DIR}/${APP_ID}.yml" | head -n 1)"
+if [ -z "${runtime_version}" ] || [ "${runtime_version}" != "${base_version}" ]; then
+  printf 'Manifest runtime-version (%s) and base-version (%s) must be set and equal.\n' "${runtime_version}" "${base_version}" >&2
+  exit 1
+fi
+
 desktop-file-validate "${SCRIPT_DIR}/${APP_ID}.desktop"
 appstreamcli validate --no-net "${SCRIPT_DIR}/${APP_ID}.metainfo.xml"
 

@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-desktop",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Minimal Electron wrapper for ChatGPT with optional customization, optimized for Linux",
   "homepage": "https://chatgpt.com",
   "main": "main.js",
@@ -31,9 +31,9 @@
     "release:flatpak": "npm run build:flatpak:release"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
-    "electron": "^37.2.0",
-    "electron-builder": "^26.0.12"
+    "@playwright/test": "^1.65.1",
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0"
   },
   "build": {
     "appId": "io.github.alterdaemon.chatgpt-desktop",
@@ -57,6 +57,14 @@
       "executableName": "chatgpt-desktop",
       "maintainer": "alter.daemon <alter.daemon.ivytq@passmail.com>",
       "category": "Utility"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false,
+      "enableCookieEncryption": true
     }
   }
 }
