@@ -22,18 +22,18 @@
 
   // Read only tooltip/usage props already held by the website. Do not access an
   // account store, fetch usage, open a tooltip, or export any of its contents.
-  function fromProps(value, depth = 0, seen = new Set()) {
+  function fromProps(value, depth = 0, seen = new Set(), numericOnly = false) {
     if (depth > 7 || value == null || seen.has(value)) return null;
-    if (typeof value === "string") return usageText(value);
+    if (typeof value === "string") return numericOnly ? null : usageText(value);
     if (typeof value !== "object") return null;
     seen.add(value);
     for (const key of ["remainingPercent", "remaining_percent"]) {
       const found = percentage(value[key]);
       if (found !== null) return found;
     }
-    const children = Array.isArray(value) ? value : [value.props, value.values, value.tooltipContent, value.content, value.children];
+    const children = Array.isArray(value) ? value : [value.props, value.values, value.tooltipContent, value.tooltip, value.content, value.children];
     for (const child of children.slice(0, 40)) {
-      const found = fromProps(child, depth + 1, seen);
+      const found = fromProps(child, depth + 1, seen, numericOnly);
       if (found !== null) return found;
     }
     return null;
@@ -58,8 +58,8 @@
     return usageText(text(value).slice(0, 2048));
   }
 
-  function readPercentage(trigger, sidebar) {
-    for (const attribute of ["interestfor", "aria-describedby"]) {
+  function readPercentage(trigger, sidebar, numericOnly = false) {
+    for (const attribute of numericOnly ? [] : ["interestfor", "aria-describedby"]) {
       for (const id of (trigger.getAttribute(attribute) || "").split(/\s+/).filter(Boolean)) {
         const tooltip = document.getElementById(id);
         const found = tooltip && usageText(tooltip.textContent || "");
@@ -67,7 +67,7 @@
       }
     }
     const label = trigger.getAttribute("aria-label") || "";
-    const labelled = usageText(label);
+    const labelled = numericOnly ? null : usageText(label);
     if (labelled !== null) return labelled;
     if (/remaining|left/i.test(label)) {
       const now = trigger.getAttribute("aria-valuenow");
@@ -77,7 +77,7 @@
     if (trigger.hasAttribute("data-ambient-usage-label")) {
       const clone = trigger.cloneNode(true);
       clone.querySelectorAll(`[${marker}]`).forEach(node => node.remove());
-      const found = usageText(clone.textContent || "");
+      const found = fromText(clone.textContent || "");
       if (found !== null) return found;
     }
     const key = Object.keys(trigger).find(key => key.startsWith("__reactFiber$"));
@@ -87,11 +87,11 @@
     // React may keep the DOM pointer on the previous alternate after a commit.
     // Prefer the branch belonging to the current root, not stale tooltip props.
     if (root?.stateNode?.current && root.stateNode.current !== root && current?.alternate) current = current.alternate;
-    for (let fiber = current, depth = 0; fiber && depth < 12; fiber = fiber.return, depth++) {
+    for (let fiber = current, depth = 0; fiber && depth < 32; fiber = fiber.return, depth++) {
       if (fiber.stateNode instanceof HTMLElement && !sidebar.contains(fiber.stateNode)) break;
       const props = fiber.memoizedProps;
-      for (const content of [props?.tooltipContent, props?.content]) {
-        const found = tooltipPercentage(content);
+      for (const content of [props?.tooltipContent, props?.tooltip, props?.content]) {
+        const found = numericOnly ? fromProps(content, 0, new Set(), true) : tooltipPercentage(content);
         if (found !== null) return found;
       }
       const found = percentage(props?.remainingPercent);
@@ -107,20 +107,24 @@
     labels.delete(trigger);
   }
 
-  function place(entry, trigger, sidebar) {
-    const rect = trigger.getBoundingClientRect();
+  function place(entry, trigger, sidebar, anchor) {
+    const rect = anchor.getBoundingClientRect();
     const bounds = sidebar.getBoundingClientRect();
     const style = getComputedStyle(trigger);
     const visible = rect.width > 0 && rect.height > 0 && rect.right > bounds.left && rect.left < bounds.right &&
       rect.bottom > Math.max(0, bounds.top) && rect.top < Math.min(innerHeight, bounds.bottom) &&
       style.visibility !== "hidden" && style.display !== "none";
-    entry.label.style.display = visible ? "block" : "none";
+    entry.label.style.display = visible ? "flex" : "none";
     if (!visible) return;
-    entry.label.style.color = style.color;
-    entry.label.style.backgroundColor = getComputedStyle(sidebar).backgroundColor;
-    const width = entry.label.getBoundingClientRect().width;
+    // Paint over the icon itself, not below the row where it can be clipped or
+    // mistaken for tooltip text. The pointer still reaches the unchanged target.
+    entry.label.style.width = "max-content";
+    const width = Math.max(rect.width, Math.ceil(entry.label.getBoundingClientRect().width));
+    const height = Math.max(rect.height, 24);
+    entry.label.style.width = `${width}px`;
+    entry.label.style.height = `${height}px`;
     entry.label.style.left = `${Math.max(bounds.left, Math.min(rect.left + (rect.width - width) / 2, bounds.right - width))}px`;
-    entry.label.style.top = `${Math.min(rect.bottom - 1, innerHeight - 12)}px`;
+    entry.label.style.top = `${Math.max(0, Math.min(rect.top + (rect.height - height) / 2, innerHeight - height))}px`;
   }
 
   function refresh() {
@@ -128,12 +132,14 @@
     for (const sidebar of document.querySelectorAll("aside, #app-shell-sidebar")) {
       const candidates = sidebar.querySelectorAll("[interestfor], [aria-describedby], [data-ambient-usage-label], [role='progressbar'][aria-label]");
       for (const candidate of candidates) {
-        // Conversation/project hover text is not usage data, even if its title
-        // happens to contain a percentage or words such as "weekly" or "left".
-        if (candidate.closest("[data-sidebar-archive-chatgpt-id], [data-explore-row]")) continue;
         const trigger = candidate.closest("button, [role='button']") || candidate;
         if (active.has(trigger) || trigger.closest("[role='tooltip'], [popover]")) continue;
-        const value = readPercentage(candidate, sidebar) ?? readPercentage(trigger, sidebar);
+        // A real usage control may be nested in a sidebar conversation row.
+        // Reject title text there, not explicit remainingPercent/usage hooks.
+        const row = candidate.closest("[data-sidebar-archive-chatgpt-id], [data-explore-row]");
+        const usageHook = candidate.closest("[data-ambient-usage-label]") || trigger.querySelector("[data-ambient-usage-label]");
+        const numericOnly = Boolean(row && !usageHook);
+        const value = (usageHook && readPercentage(usageHook, sidebar)) ?? readPercentage(candidate, sidebar, numericOnly) ?? readPercentage(trigger, sidebar, numericOnly);
         if (value === null) continue;
         active.add(trigger);
         let entry = labels.get(trigger);
@@ -141,7 +147,7 @@
           const label = document.createElement("span");
           label.setAttribute(marker, "");
           label.setAttribute("aria-hidden", "true");
-          label.style.cssText = "position:absolute;visibility:visible!important;opacity:1!important;pointer-events:none!important;white-space:nowrap;font:10px/12px monospace;font-variant-numeric:tabular-nums;padding:0 1px";
+          label.style.cssText = "position:absolute;align-items:center;justify-content:center;box-sizing:border-box;visibility:visible!important;opacity:1!important;pointer-events:none!important;white-space:nowrap;font:700 18px/24px monospace!important;font-variant-numeric:tabular-nums;color:#fff!important;background:#000!important;padding:0";
           entry = { label };
           labels.set(trigger, entry);
         }
@@ -150,7 +156,11 @@
         if (!layer.isConnected) document.documentElement.appendChild(layer);
         if (entry.label.parentElement !== layer) layer.appendChild(entry.label);
         if (entry.label.textContent !== value) entry.label.textContent = value;
-        place(entry, trigger, sidebar);
+        // Some sidebar rows use the whole row as the interaction target. Cover
+        // its usage glyph, never the neighboring conversation title.
+        const triggerRect = trigger.getBoundingClientRect();
+        const anchor = triggerRect.width > 64 ? (candidate.querySelector("svg") || trigger.querySelector("svg") || candidate) : trigger;
+        place(entry, trigger, sidebar, anchor);
       }
     }
     for (const trigger of labels.keys()) if (!active.has(trigger) || !trigger.isConnected) remove(trigger);

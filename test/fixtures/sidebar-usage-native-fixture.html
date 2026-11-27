@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Native usage tooltip fixture</title>
 <style>
-body { margin: 0; display: flex; }
-aside { width: 280px; height: 220px; overflow: hidden; }
+body { margin: 0; display: flex; background: #0a0a0a; color: white; }
+aside { width: 280px; height: 220px; overflow: hidden; background: black; }
 aside.compact { width: 44px; }
-#native-usage { display: flex; align-items: center; justify-content: center; width: 36px; height: 32px; margin: 4px; padding: 0; }
-#native-usage svg { width: 20px; height: 20px; flex-shrink: 0; }
-[popover] { margin: 0; inset: 50px auto auto 48px; padding: 8px; }
+#native-usage { display: flex; align-items: center; justify-content: center; width: 36px; height: 32px; margin: 4px; padding: 0; background: #191919; color: white; }
+#native-usage svg { width: 20px; height: 20px; flex-shrink: 0; fill: #777; }
+[popover] { margin: 0; inset: 50px auto auto 48px; padding: 8px; font: 12px monospace; background: #222; color: white; }
 main { padding: 40px; }
 #outside { position: fixed; right: 20px; bottom: 20px; }
 </style></head><body>
