@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><title>Usage meter fixture</title>
+<style>
+body { margin: 0; display: flex; background: #0a0a0a; color: white; font: 12px monospace; }
+aside { width: 56px; height: 300px; background: black; display: flex; flex-direction: column; justify-content: flex-end; }
+#meter { width: 36px; height: 36px; margin: 8px; padding: 0; border: 0; background: #191919; color: #ddd; position: relative; }
+#meter .wrap { position: relative; display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; }
+#meter svg { position: absolute; inset: 0; margin: auto; width: 24px; height: 24px; overflow: visible; }
+.tip { position: fixed; left: 70px; top: 262px; padding: 6px 10px; background: #222; border-radius: 99px; white-space: nowrap; }
+main { padding: 20px 80px; }
+#outside { position: fixed; right: 20px; top: 20px; }
+</style></head><body>
+<aside id="app-shell-sidebar">
+  <!-- Mirrors the real meter: a button with a PERSISTENT aria-description, a ring drawn with
+       pathLength=100 / dash offset = 100 - remaining, and a diamond glyph. The hover tooltip is
+       NOT in the DOM while idle; it is mounted on pointer enter and removed on leave. -->
+  <button id="plain" type="button" aria-description="Saved 50% of the time">No svg</button>
+  <div data-sidebar-archive-chatgpt-id="row"><button id="row-button" type="button" aria-description="Weekly budget 50% left"><svg width="12" height="12"><path d="M0 0h12v12z"></path></svg></button></div>
+  <button id="meter" type="button" aria-label="Usage" aria-description="Weekly usage: 1% left">
+    <span class="wrap">
+      <svg viewBox="2.5 2.5 27 27" fill="none" stroke-width="2" aria-hidden="true">
+        <path d="M16 3.5 A12.5 12.5 0 1 1 16 28.5 A12.5 12.5 0 1 1 16 3.5" stroke="var(--color-usage-meter-track)" pathLength="100"></path>
+        <path id="arc" d="M16 3.5 A12.5 12.5 0 1 1 16 28.5 A12.5 12.5 0 1 1 16 3.5" stroke="currentColor" pathLength="100" stroke-dasharray="100" stroke-dashoffset="99"></path>
+      </svg>
+      <svg id="diamond" width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M7 0 14 7 7 14 0 7Z"></path></svg>
+    </span>
+  </button>
+</aside>
+<main><button id="outside" type="button">Outside</button>
+</main>
+<script>
+const meter = document.querySelector("#meter");
+const params = new URLSearchParams(location.search);
+window.pointerEvents = 0;
+if (params.has("turkish")) meter.setAttribute("aria-description", "Haftalık kullanım: %1 kaldı");
+if (params.has("two")) meter.setAttribute("aria-description", "5-hour usage: 40% left. Weekly usage: 7% left");
+if (params.has("ring")) { meter.removeAttribute("aria-description"); document.querySelector("#arc").setAttribute("stroke-dashoffset", "88"); }
+meter.addEventListener("pointerenter", () => {
+  window.pointerEvents++;
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.setAttribute("role", "tooltip"); tip.id = "tooltip";
+  tip.textContent = "Weekly · 1% left";
+  document.body.appendChild(tip);
+});
+meter.addEventListener("pointerleave", () => { document.querySelector("#tooltip")?.remove(); });
+// Mutation counter on the site's own button: our adapter must never touch it.
+window.originalMeter = meter.outerHTML;
+</script></body></html>

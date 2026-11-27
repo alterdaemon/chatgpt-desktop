@@ -1,6 +1,6 @@
 // Two projects so the fixture-backed suite can grow without touching npm
 // scripts, while the credential-backed live checks stay opt-in and separate.
-const liveSpecs = ["**/live-chatgpt.spec.js", "**/live-dom-canary.spec.js", "**/live-settings.spec.js"];
+const liveSpecs = ["**/live-chatgpt.spec.js", "**/live-dom-canary.spec.js", "**/live-settings.spec.js", "**/live-usage.spec.js"];
 
 module.exports = {
   testDir: "./test/integration",

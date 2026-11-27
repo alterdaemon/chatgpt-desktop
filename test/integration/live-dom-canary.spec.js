@@ -80,7 +80,7 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
   expect(audit.routes.length).toBeGreaterThan(0);
   test.info().annotations.push({
     type: "coverage-boundary",
-    description: "The usage snapshots check structure/format only; they do not verify cold-start and post-hover persistence on the affected account.",
+    description: "The usage snapshots here check structure/format only. Persistence (idle, hover, after hover, reload) is verified against the real meter by live-usage.spec.js.",
   });
 
   for (const route of audit.routes) {

@@ -20,6 +20,32 @@
   };
   const usageText = text => /weekly|usage|remaining|left|limit/i.test(text) ? fromText(text) : null;
 
+  // The site's usage meter is a button whose aria-description holds the CURRENT remaining
+  // percentage ("Weekly usage: 1% left") for as long as it is rendered. Its hover tooltip, by
+  // contrast, mounts its text only while open. Read the persistent attribute, and extract the
+  // numbers without depending on English words so localized interfaces work too. With two windows
+  // ("5-hour ... Weekly ...") the lower value is the one that limits the user.
+  const percentsFrom = text => {
+    const found = [];
+    for (const match of String(text).matchAll(/(\d+(?:[.,]\d+)?)\s*%|%\s*(\d+(?:[.,]\d+)?)/g)) {
+      const value = Number(String(match[1] ?? match[2]).replace(",", "."));
+      if (Number.isFinite(value) && value >= 0 && value <= 100) found.push(value);
+    }
+    return found;
+  };
+
+  function readMeter(element, requireRing) {
+    if (!element.querySelector("svg")) return null;
+    const arcs = [...element.querySelectorAll("path[pathLength='100']")].filter(path => path.getAttribute("stroke") === "currentColor");
+    if (requireRing && !arcs.length) return null;
+    const values = percentsFrom(element.getAttribute("aria-description") || "");
+    if (values.length) return percentage(Math.min(...values));
+    // No description: the ring itself encodes the remaining percentage (dash offset = 100 - remaining).
+    const remaining = arcs.map(path => 100 - parseFloat(getComputedStyle(path).strokeDashoffset));
+    return arcs.length && remaining.every(value => Number.isFinite(value) && value >= 0 && value <= 100)
+      ? percentage(Math.min(...remaining)) : null;
+  }
+
   function fromFormattedTooltip(props, numericOnly) {
     if (!props || typeof props.defaultMessage !== "string" || !props.values || typeof props.values !== "object") return null;
     const message = props.defaultMessage.slice(0, 2048);
@@ -96,8 +122,12 @@
   }
 
   function readPercentage(trigger, sidebar, numericOnly = false) {
-    // Persistent site props, not the mounted/open tooltip, are the primary
-    // value source. Hovering must not select a different or stale percentage.
+    // The committed DOM of the usage meter is authoritative and independent of hover. Inside a
+    // conversation row only a real meter (with its ring) counts, never title text.
+    const meter = readMeter(trigger, numericOnly);
+    if (meter !== null) return meter;
+    // Persistent site props, not the mounted/open tooltip, are the next value source.
+    // Hovering must not select a different or stale percentage.
     const current = readReactPercentage(trigger, sidebar, numericOnly);
     if (current !== null) return current;
     const label = trigger.getAttribute("aria-label") || "";
@@ -204,7 +234,7 @@
     frame = requestAnimationFrame(() => { frame = null; refresh(); });
   };
   const observer = new MutationObserver(schedule);
-  observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["aria-label", "aria-valuenow", "aria-describedby", "interestfor", "data-ambient-usage-label"] });
+  observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["aria-label", "aria-description", "aria-valuenow", "aria-describedby", "interestfor", "data-ambient-usage-label"] });
   const timer = setInterval(schedule, 1000); // React-only prop updates need not mutate the DOM.
   window.addEventListener("resize", schedule, { passive: true });
   window.addEventListener("scroll", schedule, { passive: true, capture: true });
