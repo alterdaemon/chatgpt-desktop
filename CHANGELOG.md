@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - Configure the Electron sandbox helper in Linux CI so live login warm-up can run with sandboxing enabled.
 - Allow CI to bootstrap a first-party authenticated test session from an encrypted secret while retaining the mandatory real ChatGPT prompt-and-reply check.
 - Support trusted Linux runners for network-dependent CI and release builds without skipping the live checks; pull requests retain hosted runners.
+- Include the pinned Electron executable in the Flathub source-build track instead of assuming BaseApp supplies it.
 
 ## [1.5.0] - 2026-03-22
 

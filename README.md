@@ -250,7 +250,7 @@ npm run validate:flatpak:release
 Project Flatpak tracks:
 
 - `packaging/flatpak/release/` contains the GitHub-release-oriented Flatpak bundle flow that repackages `dist/linux-unpacked/`.
-- `packaging/flatpak/flathub/` contains the Flathub-oriented source-build manifest that installs pinned release sources into the Electron BaseApp runtime.
+- `packaging/flatpak/flathub/` contains the Flathub-oriented manifest that installs pinned release sources and an explicit Electron runtime with BaseApp's sandbox integration.
 
 ## Build the Flathub Flatpak track
 
@@ -263,7 +263,7 @@ This track:
 
 - reads Flathub packaging assets from `packaging/flatpak/flathub/`
 - downloads the checksum-pinned GitHub release source archive instead of using `dist/linux-unpacked/`
-- stages the app's source files under `/app/lib/io.github.alterdaemon.chatgpt-desktop/` and runs them with the BaseApp-provided Electron runtime
+- stages the app's source files under `/app/lib/io.github.alterdaemon.chatgpt-desktop/` and runs them with a checksum-pinned official Electron runtime matching `package-lock.json`
 - writes temporary builder state to `dist/flathub-flatpak-build/`
 - writes the Flatpak repo to `dist/flathub-flatpak-repo/`
 - exports a local test bundle to `dist/flathub/`

@@ -18,6 +18,8 @@ finish-args:
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
 modules:
   - name: chatgpt-desktop
+    only-arches:
+      - x86_64
     build-options:
       no-debuginfo: true
     buildsystem: simple
@@ -33,6 +35,8 @@ modules:
         package_path.write_text(json.dumps(package, indent=2) + "\n")
         PY
       - install -Dm755 chatgpt-desktop /app/bin/chatgpt-desktop
+      - mkdir -p /app/lib/electron
+      - cp -a electron-runtime/. /app/lib/electron/
       - install -Dm644 io.github.alterdaemon.chatgpt-desktop.desktop /app/share/applications/io.github.alterdaemon.chatgpt-desktop.desktop
       - install -Dm644 io.github.alterdaemon.chatgpt-desktop.metainfo.xml /app/share/metainfo/io.github.alterdaemon.chatgpt-desktop.metainfo.xml
       - install -Dm644 main/LICENSE /app/share/licenses/io.github.alterdaemon.chatgpt-desktop/LICENSE
@@ -46,8 +50,8 @@ modules:
       - for size in 16 24 32 48 64 96 128 256 512; do install -Dm644 "main/build/icons/${size}x${size}.png" "/app/share/icons/hicolor/${size}x${size}/apps/io.github.alterdaemon.chatgpt-desktop.png"; done
     sources:
       - type: archive
-        url: https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v1.5.0.tar.gz
-        sha256: 2a8829e510be775140a89da2f511473781b5397aad8e670101bfb070fc7b752b
+        url: https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v1.6.0.tar.gz
+        sha256: d1feb71c9e291a65618c647e65ce89d03ee2c04f3145b0659c32f248914472dd
         dest: main
         strip-components: 1
         x-checker-data:
@@ -59,6 +63,12 @@ modules:
           url-query: '"https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/" + $tag + ".tar.gz"'
       - type: file
         path: chatgpt-desktop
+      - type: archive
+        archive-type: zip
+        url: https://github.com/electron/electron/releases/download/v37.10.3/electron-v37.10.3-linux-x64.zip
+        sha256: c0b4edd6bd9858cda4cf7ab299e69a2d3ecd2e5fcca78507bc0851ba35614660
+        dest: electron-runtime
+        strip-components: 0
       - type: file
         path: io.github.alterdaemon.chatgpt-desktop.desktop
       - type: file

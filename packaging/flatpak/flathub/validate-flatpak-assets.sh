@@ -29,7 +29,7 @@ if ! flatpak-builder --show-manifest "${MANIFEST_PATH}" > "${MANIFEST_JSON_PATH}
   exit 1
 fi
 
-python3 - <<'PY' "${MANIFEST_JSON_PATH}" "${ROOT_DIR}/package.json" "${SCRIPT_DIR}/${APP_ID}.metainfo.xml"
+python3 - <<'PY' "${MANIFEST_JSON_PATH}" "${ROOT_DIR}/package.json" "${SCRIPT_DIR}/${APP_ID}.metainfo.xml" "${ROOT_DIR}/package-lock.json"
 import json
 import sys
 import urllib.parse
@@ -39,6 +39,7 @@ from pathlib import Path
 manifest = json.loads(Path(sys.argv[1]).read_text())
 package = json.loads(Path(sys.argv[2]).read_text())
 metainfo_root = ET.fromstring(Path(sys.argv[3]).read_text())
+lock = json.loads(Path(sys.argv[4]).read_text())
 
 version = package["version"]
 expected_url = f"https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v{version}.tar.gz"
@@ -48,7 +49,7 @@ if not modules:
     raise SystemExit("Manifest does not define any modules.")
 
 sources = modules[0].get("sources") or []
-archive_sources = [source for source in sources if source.get("type") == "archive"]
+archive_sources = [source for source in sources if source.get("type") == "archive" and source.get("dest") == "main"]
 if len(archive_sources) != 1:
     raise SystemExit("Manifest must define exactly one archive source for the app payload.")
 
@@ -61,6 +62,21 @@ if archive_source.get("url") != expected_url:
 sha256 = archive_source.get("sha256", "")
 if len(sha256) != 64 or any(ch not in "0123456789abcdef" for ch in sha256.lower()):
     raise SystemExit("Manifest archive source is missing a valid sha256 checksum.")
+
+electron_version = lock["packages"]["node_modules/electron"]["version"]
+expected_electron_url = (
+    f"https://github.com/electron/electron/releases/download/v{electron_version}/"
+    f"electron-v{electron_version}-linux-x64.zip"
+)
+electron_sources = [source for source in sources if source.get("type") == "archive" and source.get("dest") == "electron-runtime"]
+if len(electron_sources) != 1 or electron_sources[0].get("url") != expected_electron_url:
+    raise SystemExit("Manifest must pin the Linux Electron runtime matching package-lock.json.")
+electron_source = electron_sources[0]
+electron_sha256 = electron_source.get("sha256", "")
+if len(electron_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in electron_sha256.lower()):
+    raise SystemExit("Electron runtime source is missing a valid sha256 checksum.")
+if electron_source.get("archive-type") != "zip" or electron_source.get("strip-components") != 0:
+    raise SystemExit("Electron runtime archive must unpack its top-level ZIP contents.")
 
 release_versions = [release.get("version") for release in metainfo_root.findall("./releases/release")]
 if version not in release_versions:

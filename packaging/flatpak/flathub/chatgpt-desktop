@@ -4,13 +4,10 @@ set -eu
 export TMPDIR="${XDG_RUNTIME_DIR}/app/${FLATPAK_ID}"
 
 APP_ROOT="/app/lib/io.github.alterdaemon.chatgpt-desktop"
+ELECTRON_BIN="/app/lib/electron/electron"
 
-if [ -x /app/bin/electron ]; then
-  ELECTRON_BIN="/app/bin/electron"
-elif command -v electron > /dev/null 2>&1; then
-  ELECTRON_BIN="$(command -v electron)"
-else
-  printf 'Unable to locate the Electron runtime provided by BaseApp.\n' >&2
+if [ ! -x "${ELECTRON_BIN}" ]; then
+  printf 'Unable to locate the packaged Electron runtime.\n' >&2
   exit 1
 fi
 
