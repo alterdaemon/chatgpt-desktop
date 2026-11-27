@@ -1,5 +1,17 @@
 # ChatGPT Desktop for Linux (Unofficial)
 
+> [!NOTE]
+> **Why this project is still alive.**
+>
+> I was about to archive it because of OpenAI's official ChatGPT desktop
+> app. After months of using it, I couldn't stand its performance and
+> constant bloat. I don't use ChatGPT for coding; other tools do that. I
+> use it for research, quick search, reference and exploration, and for
+> that I need something fast, lightweight and customizable. For me,
+> neither the official app nor the community versions cover that. So I'm
+> keeping this a thin wrapper around chatgpt.com, and I'll keep
+> maintaining it. **More features are coming.**
+
 A Linux desktop app for ChatGPT built to make the web app feel faster, cleaner, and far more usable as a real daily tool.
 
 What started as a simple Electron wrapper has evolved into a focused desktop shell for ChatGPT: better windowing behavior, tray integration, persistent settings, keyboard-driven navigation, zoom controls, and power-user customization that smooth out rough edges in the browser experience.
