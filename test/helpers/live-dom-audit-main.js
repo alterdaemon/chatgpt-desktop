@@ -20,6 +20,7 @@ const fs = require("fs");
 const path = require("path");
 const { app, nativeTheme } = require("electron");
 const { REQUIRED_ANCHORS } = require("./live-anchors");
+const { COMPOSER_SELECTOR, inspectLiveReadiness } = require("./live-composer");
 
 const projectRoot = path.join(__dirname, "..", "..");
 const outPath = process.env.AUDIT_OUT;
@@ -190,10 +191,8 @@ async function press(wc, key) {
 }
 
 async function probe(wc) {
-  return run(wc, `(() => ({
-    challenge: /just a moment/i.test(document.title),
-    ready: !!document.querySelector("main") && !!document.querySelector("form")
-  }))()`).catch(() => ({ challenge: false, ready: false }));
+  return run(wc, `(${inspectLiveReadiness})(${JSON.stringify(COMPOSER_SELECTOR)})`)
+    .catch(() => ({ challenge: false, ready: false, signInRequired: false }));
 }
 
 async function waitReady(wc, timeoutMs) {
@@ -272,9 +271,8 @@ app.on("browser-window-created", (_event, win) => {
       await sleep(8000);
       const state = await waitReady(wc, 75000);
       if (!state.ready) {
-        result.error = state.challenge
-          ? "challenge page: a debugger is attached or the stored session is stale"
-          : "the signed-in app never rendered";
+        result.requiresLogin = state.signInRequired === true;
+        result.error = state.challenge ? "site-challenge" : result.requiresLogin ? "sign-in-required" : "signed-in-app-not-ready";
         finish(result, state.challenge ? 3 : 2);
         return;
       }
@@ -300,8 +298,9 @@ app.on("browser-window-created", (_event, win) => {
         }
       }
       finish(result, 0);
-    } catch (error) {
-      result.error = String(error && error.message ? error.message : error).slice(0, 300);
+    } catch {
+      // Navigation errors can embed private conversation URLs. Never persist them.
+      result.error = "audit-operation-failed";
       finish(result, 1);
     }
   })();

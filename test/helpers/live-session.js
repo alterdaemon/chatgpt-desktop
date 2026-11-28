@@ -36,9 +36,12 @@ function parseSessionCookies(source) {
       !cookie.value ||
       !["chatgpt.com", ".chatgpt.com"].includes(cookie.domain) ||
       (cookie.expirationDate !== undefined &&
-        (!Number.isFinite(cookie.expirationDate) || cookie.expirationDate <= Date.now() / 1000))
+        !Number.isFinite(cookie.expirationDate))
     ) {
-      throw new Error("CHATGPT_TEST_SESSION_COOKIES contains an invalid or expired first-party session cookie.");
+      throw new Error("CHATGPT_TEST_SESSION_COOKIES contains an invalid first-party session cookie.");
+    }
+    if (cookie.expirationDate !== undefined && cookie.expirationDate <= Date.now() / 1000) {
+      throw new Error("CHATGPT_TEST_SESSION_COOKIES has expired. Refresh the CI secret from the authenticated live profile.");
     }
 
     return {

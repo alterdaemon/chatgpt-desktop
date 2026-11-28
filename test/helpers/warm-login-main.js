@@ -12,16 +12,9 @@
 // The resulting session cookies persist in the shared profile directory, so the
 // Playwright run launches the real app already authenticated.
 const path = require("path");
-const { app, BrowserWindow } = require("electron");
 const { COMPOSER_SELECTOR } = require("./live-composer");
 const { parseSessionCookies } = require("./live-session");
-
-// This runs as a bare script, so Electron would default the app name to
-// "Electron" and use a different userData directory than the real app. Mirror
-// main.js exactly, or the warmed session lands in a cookie jar the app never
-// reads.
-const dataRoot = process.env.XDG_DATA_HOME || path.join(app.getPath("home"), ".local", "share");
-app.setPath("userData", path.join(dataRoot, "chatgpt-desktop"));
+const { getBrowserUserAgent } = require("../../app-logic");
 
 const CHATGPT_URL = "https://chatgpt.com/";
 const LOGIN_URL = "https://chatgpt.com/auth/login";
@@ -31,13 +24,28 @@ const password = process.env.WARM_LOGIN_PASSWORD;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+class WarmLoginError extends Error {}
+
+function loginFailureMessage(state, fallback = "Login did not complete during warm-up.") {
+  if (state?.challenge) {
+    return "Cloudflare challenge blocked ChatGPT sign-in during warm-up. Use a non-challenged network.";
+  }
+  if (state?.emailCode) {
+    return "ChatGPT sign-in requires an emailed code. Complete debugger-free assisted verification in the live profile before rerunning the live suite.";
+  }
+  return fallback;
+}
+
 function probe(wc) {
   return wc
     .executeJavaScript(
       `(() => ({
-        host: location.host,
-        title: document.title,
-        challenge: /just a moment|verify you are human|checking your browser/i.test(document.body?.innerText || ""),
+        authPage: location.hostname === "auth.openai.com",
+        challenge: /just a moment|verify you are human|checking your browser/i.test(document.title + " " + (document.body?.innerText || "")),
+        emailCode: location.hostname === "auth.openai.com" && (
+          !!document.querySelector("input[autocomplete='one-time-code'], input[name='code']") ||
+          /check your (?:email|inbox)|code.{0,40}(?:email|inbox)|(?:email|inbox).{0,40}code/i.test(document.body?.innerText || "")
+        ),
         email: !!document.querySelector("input[type='email']"),
         password: !!document.querySelector("input[type='password']"),
         composer: !!document.querySelector(${JSON.stringify(COMPOSER_SELECTOR)})
@@ -88,13 +96,34 @@ async function clickTrusted(wc, selector) {
   return true;
 }
 
+async function rememberSession(wc) {
+  const box = await wc.executeJavaScript(`(() => {
+    if (location.hostname !== "auth.openai.com") return null;
+    for (const input of document.querySelectorAll("input[type='checkbox'], [role='checkbox']")) {
+      const labels = [...(input.labels || [])];
+      const label = [input.getAttribute("aria-label") || "", ...labels.map(label => label.innerText), input.closest("label")?.innerText || ""].join(" ");
+      if (!/remember me|stay signed in|keep me signed in|trust this (?:browser|device)/i.test(label)) continue;
+      if (input.disabled || input.checked || input.getAttribute("aria-checked") === "true") continue;
+      const target = input.getBoundingClientRect().width > 0 ? input : labels.find(label => label.getBoundingClientRect().width > 0);
+      if (!target) continue;
+      const rect = target.getBoundingClientRect();
+      return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+    }
+    return null;
+  })()`).catch(() => null);
+  if (!box) return;
+  wc.sendInputEvent({ type: "mouseDown", ...box, button: "left", clickCount: 1 });
+  wc.sendInputEvent({ type: "mouseUp", ...box, button: "left", clickCount: 1 });
+}
+
 async function signIn(wc) {
   await wc.loadURL(LOGIN_URL);
 
   const loginForm = await waitFor(wc, (state) => state.email, 45000);
   if (!loginForm) {
-    throw new Error("ChatGPT login form never rendered during warm-up.");
+    throw new WarmLoginError(loginFailureMessage(await probe(wc), "ChatGPT login form never rendered during warm-up."));
   }
+  await rememberSession(wc);
 
   // The email step is a plain form, so a scripted submit is enough. Selecting a
   // button here is not: the same form also holds the Google/Apple/phone buttons.
@@ -112,18 +141,16 @@ async function signIn(wc) {
 
   const passwordScreen = await waitFor(
     wc,
-    (state) => state.password && /auth\.openai\.com/.test(state.host),
+    (state) => state.password && state.authPage,
     60000
   );
   if (!passwordScreen) {
-    throw new Error(
-      "auth.openai.com never showed the password screen. Cloudflare is challenging this egress IP; " +
-        "run the live suite from a non-challenged network."
-    );
+    throw new WarmLoginError(loginFailureMessage(await probe(wc), "auth.openai.com never showed the password screen."));
   }
+  await rememberSession(wc);
 
   if (!(await clickTrusted(wc, "input[type='password']"))) {
-    throw new Error("Could not focus the password field during warm-up.");
+    throw new WarmLoginError("Could not focus the password field during warm-up.");
   }
 
   await sleep(500);
@@ -134,31 +161,47 @@ async function signIn(wc) {
 
   const signedIn = await waitFor(wc, (state) => state.composer, 90000);
   if (!signedIn) {
-    const state = await probe(wc);
-    throw new Error(
-      "Login did not complete during warm-up. Last state: " + JSON.stringify(state)
-    );
+    throw new WarmLoginError(loginFailureMessage(await probe(wc)));
   }
 }
 
-app.whenReady().then(async () => {
+async function warmLogin() {
+  const { app, BrowserWindow } = require("electron");
+  // Mirror main.js: a bare script otherwise uses Electron's unrelated cookie jar.
+  const dataRoot = process.env.XDG_DATA_HOME || path.join(app.getPath("home"), ".local", "share");
+  app.setPath("userData", path.join(dataRoot, "chatgpt-desktop"));
+  await app.whenReady();
+
   if (!email || !password) {
     console.error("warm-login: missing credentials");
     app.exit(2);
     return;
   }
 
+  let cookies;
+  try {
+    cookies = parseSessionCookies(process.env.CHATGPT_TEST_SESSION_COOKIES);
+  } catch (error) {
+    // The parser emits fixed messages only, never cookie contents.
+    console.error("warm-login: " + error.message);
+    app.exit(1);
+    return;
+  }
+
   // The window must be shown: sendInputEvent is only delivered to a visible,
   // focused window. Tests run under xvfb, so nothing appears on a real display.
+  app.userAgentFallback = getBrowserUserAgent(app.userAgentFallback);
   const win = new BrowserWindow({
     width: 1280,
     height: 900,
     show: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
+  win.webContents.setUserAgent(app.userAgentFallback);
+  win.webContents.session.setUserAgent(app.userAgentFallback);
 
   try {
-    for (const cookie of parseSessionCookies(process.env.CHATGPT_TEST_SESSION_COOKIES)) {
+    for (const cookie of cookies) {
       await win.webContents.session.cookies.set(cookie);
     }
     await win.webContents.loadURL(CHATGPT_URL);
@@ -173,8 +216,20 @@ app.whenReady().then(async () => {
     await sleep(1500);
     app.exit(0);
   } catch (error) {
-    console.error("warm-login: " + (error && error.message ? error.message : String(error)));
-    console.error("warm-login: page state " + JSON.stringify(await probe(win.webContents)));
+    // Never serialize page state or raw Electron errors (which can contain URLs).
+    console.error("warm-login: " + loginFailureMessage(
+      await probe(win.webContents),
+      error instanceof WarmLoginError ? error.message : undefined
+    ));
     app.exit(1);
   }
-});
+}
+
+// Electron's default-app loader keeps require.main pointing at its own module.
+if (require.main === module || (
+  process.versions.electron && path.resolve(process.argv[1] || "") === __filename
+)) {
+  warmLogin();
+}
+
+module.exports = { loginFailureMessage, probe, rememberSession };

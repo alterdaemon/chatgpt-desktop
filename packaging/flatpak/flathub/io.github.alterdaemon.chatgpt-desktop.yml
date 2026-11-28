@@ -51,8 +51,8 @@ modules:
       - for size in 16 24 32 48 64 96 128 256 512; do install -Dm644 "main/build/icons/${size}x${size}.png" "/app/share/icons/hicolor/${size}x${size}/apps/io.github.alterdaemon.chatgpt-desktop.png"; done
     sources:
       - type: archive
-        url: https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v1.6.0.tar.gz
-        sha256: d1feb71c9e291a65618c647e65ce89d03ee2c04f3145b0659c32f248914472dd
+        url: https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v1.8.0.tar.gz
+        sha256: fb9009bf28c730f851870f7f78ea84303fe89995d03f6479b1aca64dccdc927a
         dest: main
         strip-components: 1
         x-checker-data:
@@ -66,8 +66,8 @@ modules:
         path: chatgpt-desktop
       - type: archive
         archive-type: zip
-        url: https://github.com/electron/electron/releases/download/v37.10.3/electron-v37.10.3-linux-x64.zip
-        sha256: c0b4edd6bd9858cda4cf7ab299e69a2d3ecd2e5fcca78507bc0851ba35614660
+        url: https://github.com/electron/electron/releases/download/v45.5.0/electron-v45.5.0-linux-x64.zip
+        sha256: 36b44cd0c3d355ee74557bea2353e4539f96e1a09733a52a052bd093134a6142
         dest: electron-runtime
         strip-components: 0
       - type: file

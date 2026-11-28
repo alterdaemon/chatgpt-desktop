@@ -66,16 +66,15 @@ test("the signed-in app still matches the stylesheet and Vimium assumptions", as
 
   let audit = await runAudit();
 
-  // A stored session can expire between runs; re-warm once before failing.
-  if (audit.error) {
+  // Never turn a challenge, DOM error or selector change into another sign-in.
+  if (audit.requiresLogin === true) {
     await warmLiveProfile(profileRoot, loadCredentials());
     audit = await runAudit();
   }
 
   expect(
     audit.error,
-    "The signed-in app did not render for the audit. A challenge page means a debugger is attached " +
-      "or the stored session is stale, not that the network is blocked."
+    "The signed-in DOM audit failed. A site challenge is not evidence that authentication expired."
   ).toBeUndefined();
   expect(audit.routes.length).toBeGreaterThan(0);
   test.info().annotations.push({

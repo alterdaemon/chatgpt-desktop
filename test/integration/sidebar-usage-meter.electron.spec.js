@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const { startFixtureServer } = require("../helpers/fixture-server");
 const { createProfile, launchApp } = require("../helpers/launch-app");
+const { observeIdleEvents } = require("../helpers/live-usage-events");
 
 // The real usage meter keeps its value in a persistent aria-description. Its tooltip text exists
 // only while hovered, so none of these tests may depend on a hover to see a percentage.
@@ -187,6 +188,44 @@ test("it never polls: no timer, and no work for streaming, scrolling or an idle 
     await page.waitForTimeout(300);
     expect(await runs()).toBeLessThanOrEqual(base + 3);
     expect(await page.evaluate(() => window.intervals)).toBe(0);
+  });
+});
+
+test("the live idle budget counts site changes but catches unexplained adapter polling", async () => {
+  await open("?plain", async page => {
+    await expect(page.locator(marker)).toHaveText("1%");
+    const begin = async () => {
+      await page.evaluate(`window.__idleBudget = (${observeIdleEvents})(); void 0`);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      return page.evaluate(() => { window.__idleBudget.begin(); return window.__chatgptDesktopSidebarUsage.runs; });
+    };
+    let base = await begin();
+    await page.evaluate(() => {
+      document.querySelector("#thread").appendChild(document.createElement("span"));
+      document.querySelector("#scroller").scrollTop = 100;
+    });
+    await page.waitForTimeout(150);
+    let sample = await page.evaluate(base => ({ delta: window.__chatgptDesktopSidebarUsage.runs - base, events: window.__idleBudget.end() }), base);
+    expect(sample).toEqual({ delta: 0, events: 0 });
+
+    base = await begin();
+    await page.evaluate(() => {
+      document.querySelector("aside").appendChild(document.createElement("span"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await page.waitForTimeout(150);
+    sample = await page.evaluate(base => ({ delta: window.__chatgptDesktopSidebarUsage.runs - base, events: window.__idleBudget.end() }), base);
+    expect(sample.delta).toBeGreaterThan(0);
+    expect(sample.delta).toBeLessThanOrEqual(sample.events);
+
+    base = await begin();
+    await page.evaluate(() => { window.__deliberatePoll = setInterval(() => window.__chatgptDesktopSidebarUsage.refresh(), 25); });
+    await page.waitForTimeout(250);
+    sample = await page.evaluate(base => {
+      clearInterval(window.__deliberatePoll);
+      return { delta: window.__chatgptDesktopSidebarUsage.runs - base, events: window.__idleBudget.end() };
+    }, base);
+    expect(sample.delta).toBeGreaterThan(sample.events);
   });
 });
 

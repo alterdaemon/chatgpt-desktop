@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { app } = require("electron");
-const { COMPOSER_SELECTOR } = require("./live-composer");
+const { COMPOSER_SELECTOR, inspectLiveReadiness } = require("./live-composer");
 
 const output = process.env.SETTINGS_AUDIT_OUT;
 if (!output || !["XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"].every(key => process.env[key])) {
@@ -38,7 +38,10 @@ function inspectPage(composerSelector) {
 
 app.on("browser-window-created", (_event, window) => {
   const wc = window.webContents;
-  const inspect = () => wc.executeJavaScript(`(${inspectPage.toString()})(${JSON.stringify(COMPOSER_SELECTOR)})`, true);
+  const inspect = () => wc.executeJavaScript(`({
+    ...(${inspectPage})(${JSON.stringify(COMPOSER_SELECTOR)}),
+    readiness: (${inspectLiveReadiness})(${JSON.stringify(COMPOSER_SELECTOR)})
+  })`, true);
   const waitFor = async predicate => {
     const deadline = Date.now() + 50000;
     while (Date.now() < deadline) {
@@ -49,8 +52,11 @@ app.on("browser-window-created", (_event, window) => {
   };
   (async () => {
     try {
-      const initial = await waitFor(state => state.composer);
-      if (!initial.composer) { result.error = "composer-unavailable"; finish(3); return; }
+      const initial = await waitFor(state => state.readiness.ready);
+      if (!initial.readiness.ready) {
+        result.error = initial.readiness.challenge ? "site-challenge" : initial.readiness.signInRequired ? "sign-in-required" : "composer-unavailable";
+        finish(3); return;
+      }
       result.menu = require("electron").Menu.getApplicationMenu().getMenuItemById("chatgpt-settings").enabled;
       for (const mode of ["shortcut", "menu"]) {
         if (mode === "menu") {

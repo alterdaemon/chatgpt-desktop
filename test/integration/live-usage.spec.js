@@ -27,7 +27,7 @@ test("the real usage meter shows its percentage at idle, during and after hover,
     });
     expect(fs.existsSync(output), "The debugger-free usage audit produced no structural result.").toBe(true);
     const result = JSON.parse(fs.readFileSync(output, "utf8"));
-    expect(result.error, "The site's usage meter did not render: its component or response shape changed.").toBeUndefined();
+    expect(result.error, `The site's usage meter did not render or its audit failed (usageStubServed=${Boolean(result.usageStubServed)}): its component or response shape may have changed.`).toBeUndefined();
     expect(result.stubbedResponses).toBeGreaterThan(0);
 
     const shown = (state, where) => {
@@ -46,7 +46,7 @@ test("the real usage meter shows its percentage at idle, during and after hover,
     expect(result.idle.pointerEvents, "idle snapshot must be taken with no pointer input").toBe(0);
     expect(result.idle.tooltipWithPercent, "idle: the site's tooltip must not be mounted").toBe(false);
     shown(result.idle, "idle");
-    expect(result.idleLater.runs, "no refresh work while the real page is idle (no polling)").toBe(result.idle.runs);
+    expect(result.runsDelta, `Unexplained idle work of the usage adapter: ${result.runsDelta} refreshes for ${result.events} triggering events.`).toBeLessThanOrEqual(result.events);
     shown(result.idleLater, "still idle");
 
     expect(result.hover.tooltipWithPercent, "hovering must still open the site's original tooltip").toBe(true);

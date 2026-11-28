@@ -1,7 +1,9 @@
 # Flathub Track
 
 > [!NOTE]
-> This track is paused. It still pins an older Electron release and the Freedesktop 24.08 runtime, which is end of life, and it is not updated or validated by CI until Flathub work resumes. Do not submit it as is.
+> This track is paused. It still targets the Freedesktop 24.08 runtime, which is end of life, and it is not updated or validated by CI until Flathub work resumes. Do not submit it as is.
+
+The source pin was refreshed to v1.8.0 and the Electron pin to 45.5.0; re-verify both checksums before un-pausing. Static validation is not a build or launch check.
 
 This directory contains the Flathub-oriented Flatpak packaging for ChatGPT Desktop.
 
@@ -53,5 +55,5 @@ The repository currently includes a placeholder screenshot asset at `.github/ass
 To compute a fresh source checksum for a tagged release archive:
 
 ```bash
-python3 -c 'import hashlib, urllib.request; url="https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v1.6.0.tar.gz"; data=urllib.request.urlopen(url, timeout=30).read(); print(hashlib.sha256(data).hexdigest())'
+python3 -c 'import hashlib, urllib.request; url="https://github.com/alterdaemon/chatgpt-desktop/archive/refs/tags/v1.8.0.tar.gz"; data=urllib.request.urlopen(url, timeout=30).read(); print(hashlib.sha256(data).hexdigest())'
 ```

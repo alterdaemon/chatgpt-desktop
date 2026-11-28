@@ -8,6 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const { app, net, session } = require("electron");
+const { observeIdleEvents } = require("./live-usage-events");
 
 const output = process.env.USAGE_AUDIT_OUT;
 if (!output || ![ "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME" ].every(key => process.env[key])) {
@@ -15,7 +16,7 @@ if (!output || ![ "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME" ].every(k
 }
 const USED = 99; // the site then reports 1% remaining
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const result = { stubbedResponses: 0 };
+const result = { stubbedResponses: 0, usageStubServed: false };
 let finished = false;
 function finish(code) {
   if (finished) return;
@@ -58,6 +59,9 @@ app.whenReady().then(() => {
       try { data = JSON.parse(text); } catch { return new Response(text, { status: response.status, statusText: response.statusText, headers: response.headers }); }
       if (!stub(data, url.pathname)) return new Response(text, { status: response.status, statusText: response.statusText, headers: response.headers });
       result.stubbedResponses++;
+      if (/\/wham\/usage$/.test(url.pathname) && response.ok) {
+        result.usageStubServed = true;
+      }
       const headers = new Headers(response.headers);
       headers.delete("content-length"); headers.delete("content-encoding");
       return new Response(JSON.stringify(data), { status: response.status, statusText: response.statusText, headers });
@@ -132,10 +136,20 @@ app.on("browser-window-created", (_event, window) => {
       result.meterRendered = idle.meters > 0;
       if (!result.meterRendered) { result.error = "meter-not-rendered"; finish(3); return; }
       await delay(2500);
-      result.idle = await snapshot();
-      // The adapter must not do any work while the real page sits idle (no polling).
+      await run(`window.__usageIdleProbe = (${observeIdleEvents})(); true;`);
+      // Drain initial ResizeObserver deliveries and already-scheduled adapter frames.
+      await run("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+      result.idle = await run(`(() => { window.__usageIdleProbe.begin(); return (${inspect})(); })()`);
       await delay(6000);
-      result.idleLater = await snapshot();
+      const idleEnd = await run(`(() => {
+        const state = (${inspect})();
+        const events = window.__usageIdleProbe.end();
+        delete window.__usageIdleProbe;
+        return { state, events };
+      })()`);
+      result.idleLater = idleEnd.state;
+      result.runsDelta = result.idleLater.runs - result.idle.runs;
+      result.events = idleEnd.events;
 
       const point = { x: result.idle.meterRect.x + Math.round(result.idle.meterRect.w / 2), y: result.idle.meterRect.y + Math.round(result.idle.meterRect.h / 2) };
       window.focus();
@@ -156,7 +170,7 @@ app.on("browser-window-created", (_event, window) => {
       result.reloaded = await snapshot();
       result.reloadedHadLabel = reloaded.labels > 0;
       finish(0);
-    } catch (error) { result.error = String(error && error.message || error).slice(0, 160); finish(1); }
+    } catch { result.error = "audit-operation-failed"; finish(1); }
   })();
 });
 require(path.resolve(__dirname, "../../main.js"));

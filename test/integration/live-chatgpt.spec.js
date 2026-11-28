@@ -1,85 +1,42 @@
+const fs = require("fs");
+const os = require("os");
 const path = require("path");
-const { test, expect, _electron: electron } = require("@playwright/test");
-const { getLiveComposer } = require("../helpers/live-composer");
-const { getLiveAssistantMessage } = require("../helpers/live-message");
-const {
-  ensureAuthenticatedProfile,
-  loadCredentials,
-  profileEnv,
-  warmLiveProfile,
-} = require("../helpers/warm-live-profile");
+const { spawn } = require("child_process");
+const { test, expect } = require("@playwright/test");
+const { ensureAuthenticatedProfile, loadCredentials, profileEnv, warmLiveProfile } = require("../helpers/warm-live-profile");
 
-const projectRoot = path.join(__dirname, "..", "..");
-const profileRoot =
-  process.env.CHATGPT_DESKTOP_LIVE_PROFILE || path.join(projectRoot, ".live-chatgpt-profile");
-
-test.setTimeout(420000);
-
-function launchLiveApp() {
-  return electron.launch({
-    executablePath: require("electron"),
-    args: [projectRoot],
-    env: {
-      ...process.env,
-      NODE_ENV: "test",
-      ...profileEnv(profileRoot),
-    },
-  });
-}
-
-async function openSignedInApp() {
-  const app = await launchLiveApp();
-  const page = await app.firstWindow();
-  await page.waitForURL(/^https:\/\/chatgpt\.com\//, { timeout: 30000 });
-
-  const composer = getLiveComposer(page);
-  const ready = await composer
-    .waitFor({ state: "visible", timeout: 45000 })
-    .then(() => true)
-    .catch(() => false);
-
-  return { app, page, composer, ready };
-}
+const projectRoot = path.resolve(__dirname, "../..");
+const profileRoot = process.env.CHATGPT_DESKTOP_LIVE_PROFILE || path.join(projectRoot, ".live-chatgpt-profile");
 
 test("signs in and sends a real ChatGPT smoke prompt with production security settings", async () => {
-  // The login itself runs in a debugger-free warm-up; Playwright only ever
-  // attaches to an already-authenticated profile.
   await ensureAuthenticatedProfile(profileRoot);
-
-  let session = await openSignedInApp();
-
-  // A stored session can expire between runs; re-warm once before failing.
-  if (!session.ready) {
-    await session.app.close();
-    await warmLiveProfile(profileRoot, loadCredentials());
-    session = await openSignedInApp();
-  }
-
-  const { app, page, composer, ready } = session;
-
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "chatgpt-live-smoke-"));
+  const output = path.join(temporary, "result.json");
+  const run = async () => {
+    fs.rmSync(output, { force: true });
+    await new Promise((resolve, reject) => {
+      const child = spawn(require("electron"), [path.join(projectRoot, "test/helpers/live-smoke-main.js")], {
+        env: { ...process.env, ...profileEnv(profileRoot), SMOKE_AUDIT_OUT: output }, stdio: "ignore",
+      });
+      const timer = setTimeout(() => child.kill("SIGKILL"), 230000);
+      child.once("error", error => { clearTimeout(timer); reject(error); });
+      child.once("exit", () => { clearTimeout(timer); resolve(); });
+    });
+    expect(fs.existsSync(output), "The debugger-free real ChatGPT smoke check produced no structural result.").toBe(true);
+    return JSON.parse(fs.readFileSync(output, "utf8"));
+  };
   try {
-    expect(
-      ready,
-      "ChatGPT never rendered the composer for the warmed session. If this persists, the egress IP " +
-        "is being challenged by Cloudflare or the stored session could not be refreshed."
-    ).toBe(true);
-
-    await composer.fill("Reply with exactly LIVE_SMOKE_OK and no other text.");
-    await composer.press("Enter");
-
-    const assistantMessage = getLiveAssistantMessage(page);
-    await expect(assistantMessage).toContainText("LIVE_SMOKE_OK", { timeout: 120000 });
-
-    expect(await page.evaluate(() => typeof process)).toBe("undefined");
-    expect(await page.evaluate(() => typeof require)).toBe("undefined");
-
-    const preferences = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences()
-    );
-    expect(preferences.contextIsolation).toBe(true);
-    expect(preferences.nodeIntegration).toBe(false);
-    expect(preferences.sandbox).toBe(true);
-  } finally {
-    await app.close();
-  }
+    let result = await run();
+    // Only an explicit sign-in screen justifies warming. A challenge, selector
+    // failure or missing reply is not evidence of expired authentication.
+    if (result.error === "sign-in-required") {
+      await warmLiveProfile(profileRoot, loadCredentials());
+      result = await run();
+    }
+    expect(result.error, `Real ChatGPT smoke failed (promptSent=${Boolean(result.promptSent)}, replyVerified=${Boolean(result.replyVerified)}, messageCounts=${JSON.stringify(result.messageCounts || {})}); a site challenge must not trigger another login.`).toBeUndefined();
+    expect(result.debuggerAttached).toBe(false);
+    expect(result.promptSent).toBe(true);
+    expect(result.replyVerified).toBe(true);
+    expect(result.security).toEqual({ contextIsolation: true, nodeIntegration: false, sandbox: true, processHidden: true, requireHidden: true });
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
 });

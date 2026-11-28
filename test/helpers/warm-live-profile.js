@@ -1,9 +1,25 @@
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { loginFailureMessage } = require("./warm-login-main");
 
 const projectRoot = path.join(__dirname, "..", "..");
 const warmMain = path.join(__dirname, "warm-login-main.js");
+const warmMessages = new Set([
+  loginFailureMessage(), loginFailureMessage({ challenge: true }), loginFailureMessage({ emailCode: true }),
+  "missing credentials", "ChatGPT login form never rendered during warm-up.",
+  "auth.openai.com never showed the password screen.", "Could not focus the password field during warm-up.",
+  "Invalid CHATGPT_TEST_SESSION_COOKIES JSON.",
+  "CHATGPT_TEST_SESSION_COOKIES must contain session cookies.",
+  "CHATGPT_TEST_SESSION_COOKIES must include an authentication cookie.",
+  "CHATGPT_TEST_SESSION_COOKIES contains an invalid first-party session cookie.",
+  "CHATGPT_TEST_SESSION_COOKIES has expired. Refresh the CI secret from the authenticated live profile.",
+].map(message => "warm-login: " + message));
+
+function warmupFailureDetail(stderr) {
+  // Native/browser diagnostics may contain URLs. Only our fixed messages leave here.
+  return stderr.split(/\r?\n/).filter(line => warmMessages.has(line)).join(" ");
+}
 
 // Credentials come from the environment in CI and from the private parent .env
 // locally. They are never logged.
@@ -114,7 +130,7 @@ function warmLiveProfile(profileRoot, credentials, timeoutMs = 240000) {
         return;
       }
 
-      const detail = stderr.replace(/\s+/g, " ").trim();
+      const detail = warmupFailureDetail(stderr);
       reject(
         new Error(
           "Live profile warm-up failed (exit " + code + ")." + (detail ? " " + detail : "")
@@ -140,4 +156,5 @@ module.exports = {
   profileEnv,
   profileIsAuthenticated,
   warmLiveProfile,
+  warmupFailureDetail,
 };
